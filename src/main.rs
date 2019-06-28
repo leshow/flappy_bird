@@ -17,6 +17,7 @@ use std::path;
 /// given angle (in radians)
 fn vec_from_angle(angle: f32) -> Vector2<f32> {
     let vx = angle.sin();
+    dbg!(vx);
     let vy = angle.cos();
     Vector2::new(vx, vy)
 }
@@ -68,6 +69,8 @@ impl Actor {
     }
 }
 
+
+
 struct Assets {
     player_image: graphics::Image,
     pipe_image: graphics::Image,
@@ -110,7 +113,7 @@ impl Assets {
 struct InputState {
     xaxis: f32,
     yaxis: f32,
-    fire: bool,
+    flap: bool,
 }
 
 impl Default for InputState {
@@ -118,7 +121,7 @@ impl Default for InputState {
         InputState {
             xaxis: 0.0,
             yaxis: 0.0,
-            fire: false,
+            flap: false,
         }
     }
 }
@@ -136,7 +139,7 @@ impl Default for InputState {
 
 struct MainState {
     player: Actor,
-    shots: Vec<Actor>,
+    pipes: Vec<Actor>,
     rocks: Vec<Actor>,
     level: i32,
     score: i32,
@@ -157,7 +160,7 @@ impl MainState {
         // let score_disp = graphics::Text::new(ctx, "score", &assets.font)?;
         // let level_disp = graphics::Text::new(ctx, "level", &assets.font)?;
 
-        let player = create_player();
+        let player = Actor::new(ActorType::Player);
         let rocks = create_rocks(5, player.pos, 100.0, 250.0);
 
         let s = MainState {
@@ -291,7 +294,7 @@ impl EventHandler for MainState {
             // Update the player state based on the user input.
             player_handle_input(&mut self.player, &self.input, seconds);
             self.player_shot_timeout -= seconds;
-            if self.input.fire && self.player_shot_timeout < 0.0 {
+            if self.input.flap && self.player_shot_timeout < 0.0 {
                 self.fire_player_shot();
             }
 
@@ -356,9 +359,6 @@ impl EventHandler for MainState {
                 draw_actor(assets, ctx, s, coords)?;
             }
 
-            for r in &self.rocks {
-                draw_actor(assets, ctx, r, coords)?;
-            }
         }
 
         // And draw the GUI elements in the right places.
@@ -405,7 +405,7 @@ impl EventHandler for MainState {
                 self.input.xaxis = 1.0;
             }
             KeyCode::Space => {
-                self.input.fire = true;
+                self.input.flap = true;
             }
             KeyCode::P => {
                 let img = graphics::screenshot(ctx).expect("Could not take screenshot");
