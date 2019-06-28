@@ -43,14 +43,12 @@ pub fn player_flap(player: &mut Actor, dt: f32) {
 }
 
 pub fn update_player_pos(player: &mut Actor, dt: f32) {
+    let dir = vec_from_angle(0.0); // should be (0, 1)
+    let grav = dir * crate::FALL_SPEED;
+
+    player.velocity -= grav;
     let dv = player.velocity * dt;
     player.pos += dv;
-}
-
-pub fn player_gravity(player: &mut Actor, dt: f32) {
-    let dir = vec_from_angle(0.0); // should be (0, 1)
-    let grav_vec = dir * crate::FALL_SPEED;
-    player.velocity += grav_vec * dt;
 }
 
 pub fn vec_from_angle(angle: f32) -> Vector2<f32> {

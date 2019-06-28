@@ -18,8 +18,8 @@ use std::env;
 use std::path;
 
 pub const PLAYER_LIFE: f32 = 1.0;
-pub const FALL_SPEED: f32 = -100.0;
-pub const FLAP_SPEED: f32 = 300.0;
+pub const FALL_SPEED: f32 = 2.0;
+pub const FLAP_SPEED: f32 = 500.0;
 pub const FLAP_HEIGHT: f32 = 5.0;
 
 pub const PLAYER_BBOX: f32 = 12.0;
@@ -110,48 +110,8 @@ impl MainState {
 
         Ok(())
     }
-    // fn fire_player_shot(&mut self) {
-    //     self.player_shot_timeout = PLAYER_SHOT_TIME;
-
-    //     let player = &self.player;
-    //     let mut shot = create_shot();
-    //     shot.pos = player.pos;
-    //     let direction = vec_from_angle(shot.facing);
-    //     shot.velocity.x = SHOT_SPEED * direction.x;
-    //     shot.velocity.y = SHOT_SPEED * direction.y;
-
-    //     self.shots.push(shot);
-
-    //     let pos = world_to_audio_coords(self.screen_width, self.screen_height, player.pos);
-    //     self.assets.shot_sound.set_position(pos);
-    //     let _ = self.assets.shot_sound.play();
-    // }
-
     // fn clear_dead_stuff(&mut self) {
-    //     self.shots.retain(|s| s.life > 0.0);
-    //     self.rocks.retain(|r| r.life > 0.0);
-    // }
-
-    // fn handle_collisions(&mut self) {
-    //     for rock in &mut self.rocks {
-    //         let pdistance = rock.pos - self.player.pos;
-    //         if pdistance.norm() < (self.player.bbox_size + rock.bbox_size) {
-    //             self.player.life = 0.0;
-    //         }
-    //         for shot in &mut self.shots {
-    //             let distance = shot.pos - rock.pos;
-    //             if distance.norm() < (shot.bbox_size + rock.bbox_size) {
-    //                 shot.life = 0.0;
-    //                 rock.life = 0.0;
-    //                 self.score += 1;
-
-    //                 let pos =
-    //                     world_to_audio_coords(self.screen_width, self.screen_height, rock.pos);
-    //                 self.assets.shot_sound.set_position(pos);
-    //                 let _ = self.assets.hit_sound.play();
-    //             }
-    //         }
-    //     }
+    //     self.pipes.retain(|s| s.pos.x > 0.0);
     // }
 
     // fn update_ui(&mut self, ctx: &mut Context) {
@@ -176,25 +136,14 @@ fn print_instructions() {
 /// Translates the world coordinate system, which
 /// has Y pointing up and the origin at the center,
 /// to the screen coordinate system, which has Y
-/// pointing downward and the origin at the top-left,
-fn world_to_screen_coords(
-    screen_width: f32,
-    screen_height: f32,
-    point: Point2<f32>,
-) -> Point2<f32> {
-    let x = point.x + screen_width / 2.0;
-    let y = screen_height - (point.y + screen_height / 2.0);
+fn translate_coords(point: Point2<f32>) -> Point2<f32> {
+    let x = point.x + SCREEN_WIDTH / 2.0;
+    let y = SCREEN_HEIGHT - (point.y + SCREEN_HEIGHT / 2.0);
     Point2::new(x, y)
 }
 
-fn draw_actor(
-    assets: &mut Assets,
-    ctx: &mut Context,
-    actor: &Actor,
-    world_coords: (f32, f32),
-) -> GameResult {
-    let (screen_w, screen_h) = world_coords;
-    let pos = world_to_screen_coords(screen_w, screen_h, actor.pos);
+fn draw_actor(assets: &mut Assets, ctx: &mut Context, actor: &Actor) -> GameResult {
+    let pos = translate_coords(actor.pos);
     let image = assets.actor_image(actor);
     let drawparams = graphics::DrawParam::new()
         .dest(pos)
@@ -211,6 +160,7 @@ impl EventHandler for MainState {
             if self.input.flap {
                 player_flap(&mut self.player, seconds);
             }
+
             // player_gravity(&mut self.player, seconds);
             update_player_pos(&mut self.player, seconds);
         }
@@ -224,10 +174,8 @@ impl EventHandler for MainState {
 
         {
             let assets = &mut self.assets;
-            let coords = (self.screen_width, self.screen_height);
-
             let p = &self.player;
-            draw_actor(assets, ctx, p, coords)?;
+            draw_actor(assets, ctx, p)?;
         }
 
         self.draw_hud(ctx)?;
