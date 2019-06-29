@@ -39,16 +39,19 @@ impl Actor {
 pub fn player_flap(player: &mut Actor, dt: f32) {
     let dir = vec_from_angle(0.0);
     let flap_vec = dir * crate::FLAP_SPEED;
-    player.velocity += flap_vec * dt;
+    // set constant velocity on flap
+    player.velocity = flap_vec * dt;
+    // makes for more "real" physics but is not flappy bird:
+    // player.velocity += flap_vec * dt;
 }
 
 pub fn update_player_pos(player: &mut Actor, dt: f32) {
-    let dir = vec_from_angle(0.0); // should be (0, 1)
+    let dir = vec_from_angle(0.0);
     let grav = dir * crate::FALL_SPEED;
 
-    player.velocity -= grav;
-    let dv = player.velocity * dt;
-    player.pos += dv;
+    player.velocity -= grav * dt;
+    // let dv = player.velocity * dt;
+    player.pos += player.velocity;
 }
 
 pub fn vec_from_angle(angle: f32) -> Vector2<f32> {

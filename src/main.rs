@@ -18,9 +18,10 @@ use std::env;
 use std::path;
 
 pub const PLAYER_LIFE: f32 = 1.0;
-pub const FALL_SPEED: f32 = 2.0;
-pub const FLAP_SPEED: f32 = 500.0;
-pub const FLAP_HEIGHT: f32 = 5.0;
+pub const FALL_SPEED: f32 = 7.0;
+pub const FLAP_SPEED: f32 = 180.0;
+
+pub const DESIRED_FPS: u32 = 60;
 
 pub const PLAYER_BBOX: f32 = 12.0;
 pub const PIPE_BBOX: f32 = 12.0;
@@ -79,14 +80,14 @@ impl MainState {
 
     fn draw_bg(&mut self, ctx: &mut Context) -> GameResult<()> {
         let bg = &self.assets.bg;
-        for tile in 0..=(SCREEN_WIDTH as u16 / bg.width()) {
+        for tile in 0..=(self.screen_width as u16 / bg.width()) {
             let bg_params =
                 graphics::DrawParam::new().dest(Point2::new(f32::from(tile * bg.width()), 0.0));
             graphics::draw(ctx, bg, bg_params)?;
         }
         // draw base
         let base = &self.assets.base;
-        for tile in 0..=(SCREEN_WIDTH as u16 / base.width()) {
+        for tile in 0..=(self.screen_width as u16 / base.width()) {
             let base_params = graphics::DrawParam::new().dest(Point2::new(
                 f32::from(tile * bg.width()),
                 f32::from(bg.height()),
@@ -136,14 +137,19 @@ fn print_instructions() {
 /// Translates the world coordinate system, which
 /// has Y pointing up and the origin at the center,
 /// to the screen coordinate system, which has Y
-fn translate_coords(point: Point2<f32>) -> Point2<f32> {
-    let x = point.x + SCREEN_WIDTH / 2.0;
-    let y = SCREEN_HEIGHT - (point.y + SCREEN_HEIGHT / 2.0);
+fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -> Point2<f32> {
+    let x = point.x + screen_width / 2.0;
+    let y = screen_height - (point.y + screen_height / 2.0);
     Point2::new(x, y)
 }
 
-fn draw_actor(assets: &mut Assets, ctx: &mut Context, actor: &Actor) -> GameResult {
-    let pos = translate_coords(actor.pos);
+fn draw_actor(
+    assets: &mut Assets,
+    ctx: &mut Context,
+    actor: &Actor,
+    screen_dims: (f32, f32),
+) -> GameResult {
+    let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
     let image = assets.actor_image(actor);
     let drawparams = graphics::DrawParam::new()
         .dest(pos)
@@ -151,17 +157,28 @@ fn draw_actor(assets: &mut Assets, ctx: &mut Context, actor: &Actor) -> GameResu
     graphics::draw(ctx, image, drawparams)
 }
 
+fn draw_bird(
+    assets: &mut Assets,
+    ctx: &mut Context,
+    actor: &Actor,
+    screen_dims: (f32, f32),
+) -> GameResult {
+    let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
+    let image = assets.actor_image(actor);
+    let drawparams = graphics::DrawParam::new()
+        .dest(pos)
+        .offset(Point2::new(0.5, 0.5));
+    graphics::draw(ctx, image, drawparams)
+}
+
+
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
-        const DESIRED_FPS: u32 = 60;
-
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let seconds = 1.0 / (DESIRED_FPS as f32);
             if self.input.flap {
                 player_flap(&mut self.player, seconds);
             }
-
-            // player_gravity(&mut self.player, seconds);
             update_player_pos(&mut self.player, seconds);
         }
 
@@ -175,7 +192,8 @@ impl EventHandler for MainState {
         {
             let assets = &mut self.assets;
             let p = &self.player;
-            draw_actor(assets, ctx, p)?;
+            let screen_dims = (self.screen_width, self.screen_height);
+            draw_bird(assets, ctx, p, screen_dims)?;
         }
 
         self.draw_hud(ctx)?;
@@ -201,7 +219,7 @@ impl EventHandler for MainState {
         _repeat: bool,
     ) {
         match keycode {
-            KeyCode::Space => {
+            KeyCode::A => {
                 self.input.flap = true;
             }
             KeyCode::P => {
@@ -216,7 +234,7 @@ impl EventHandler for MainState {
 
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods) {
         match keycode {
-            KeyCode::Space => {
+            KeyCode::A => {
                 self.input.flap = false;
             }
             _ => (),
