@@ -92,7 +92,6 @@ impl MainState {
         let dir = vec_from_angle(0.0);
         let grav = dir * crate::FALL_SPEED;
         self.player.velocity -= grav * dt;
-        // let dv = self.player.velocity * dt;
         self.player.pos += self.player.velocity;
     }
 
@@ -277,6 +276,12 @@ impl EventHandler for MainState {
         match keycode {
             KeyCode::A => {
                 self.input.flap = false;
+                // variable height flap
+                // let dir = vec_from_angle(0.0);
+                // let flap_vec = dir * (crate::FLAP_SPEED / 2.0);
+                // if self.player.velocity < flap_vec {
+                //     self.player.velocity = flap_vec;
+                // }
             }
             _ => (),
         }
