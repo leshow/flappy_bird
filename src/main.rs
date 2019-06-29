@@ -10,7 +10,8 @@ use ggez::{
     audio::{self, SoundSource},
     conf,
     event::{self, EventHandler, KeyCode, KeyMods},
-    graphics, nalgebra as na,
+    graphics::{self, spritebatch::SpriteBatch},
+    nalgebra as na,
     nalgebra::{Point2, Vector2},
     timer, {Context, ContextBuilder, GameResult},
 };
@@ -18,12 +19,15 @@ use ggez::{
 use std::env;
 use std::path;
 
+// game constants
 pub const PLAYER_LIFE: f32 = 1.0;
 pub const FALL_SPEED: f32 = 7.0;
 pub const FLAP_SPEED: f32 = 180.0;
 pub const FLAP_TIMEOUT: f32 = 0.25;
 
 pub const DESIRED_FPS: u32 = 60;
+pub const LEVEL_LEN: u16 = 10;
+pub const MOVE_SPEED: f32 = 2.0;
 
 pub const PLAYER_BBOX: f32 = 12.0;
 pub const PIPE_BBOX: f32 = 12.0;
@@ -52,6 +56,7 @@ struct MainState {
     screen_height: f32,
     input: InputState,
     flap_timeout: f32,
+    offset: f32,
 }
 
 impl MainState {
@@ -73,6 +78,7 @@ impl MainState {
             input: InputState::default(),
             flap_timeout: 0.0,
             paused: true,
+            offset: 0.0,
         };
 
         Ok(s)
@@ -97,22 +103,37 @@ impl MainState {
 
 
     fn draw_bg(&mut self, ctx: &mut Context) -> GameResult<()> {
-        // draw bg
-        let bg = &self.assets.bg;
-        for tile in 0..=(self.screen_width as u16 / bg.width()) {
-            let bg_params =
-                graphics::DrawParam::new().dest(Point2::new(f32::from(tile * bg.width()), 0.0));
-            graphics::draw(ctx, bg, bg_params)?;
+        self.assets.bg.bg.clear();
+        self.assets.bg.base.clear();
+        let bg = &mut self.assets.bg;
+        for i in 0..=LEVEL_LEN {
+            // draw bg
+            for tile in 0..=(self.screen_width as u16 / bg.bg_w) {
+                let bg_params = graphics::DrawParam::new().dest(Point2::new(
+                    f32::from(i * bg.bg_w) + f32::from(tile * bg.bg_w),
+                    0.0,
+                ));
+                bg.bg.add(bg_params);
+            }
+            // draw base
+            for tile in 0..=(self.screen_width as u16 / bg.base_w) {
+                let base_params = graphics::DrawParam::new().dest(Point2::new(
+                    f32::from(i * bg.base_w) + f32::from(tile * bg.base_w),
+                    f32::from(bg.bg_h),
+                ));
+                bg.base.add(base_params);
+            }
         }
-        // draw base
-        let base = &self.assets.base;
-        for tile in 0..=(self.screen_width as u16 / base.width()) {
-            let base_params = graphics::DrawParam::new().dest(Point2::new(
-                f32::from(tile * bg.width()),
-                f32::from(bg.height()),
-            ));
-            graphics::draw(ctx, base, base_params)?;
-        }
+        graphics::draw(
+            ctx,
+            &bg.bg,
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.0)),
+        )?;
+        graphics::draw(
+            ctx,
+            &bg.base,
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.0)),
+        )?;
 
         Ok(())
     }
@@ -132,7 +153,7 @@ impl MainState {
     }
 
     fn draw_menu(&mut self, ctx: &mut Context) -> GameResult<()> {
-        let msg = &self.assets.message;
+        let msg = &self.assets.bg.message;
         let params = graphics::DrawParam::new()
             .dest(translate_coords(
                 Point2::origin(),
@@ -175,19 +196,19 @@ fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -
     Point2::new(x, y)
 }
 
-fn draw_actor(
-    assets: &mut Assets,
-    ctx: &mut Context,
-    actor: &Actor,
-    screen_dims: (f32, f32),
-) -> GameResult {
-    let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
-    let image = assets.actor_image(actor);
-    let drawparams = graphics::DrawParam::new()
-        .dest(pos)
-        .offset(Point2::new(0.5, 0.5));
-    graphics::draw(ctx, image, drawparams)
-}
+// fn draw_actor(
+//     assets: &mut Assets,
+//     ctx: &mut Context,
+//     actor: &Actor,
+//     screen_dims: (f32, f32),
+// ) -> GameResult {
+//     let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
+//     let image = assets.actor_image(actor);
+//     let drawparams = graphics::DrawParam::new()
+//         .dest(pos)
+//         .offset(Point2::new(0.5, 0.5));
+//     graphics::draw(ctx, image, drawparams)
+// }
 
 fn draw_bird(
     assets: &mut Assets,
@@ -208,11 +229,12 @@ impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             if !self.paused {
-                let seconds = 1.0 / (DESIRED_FPS as f32);
+                let seconds = 1.0 / (crate::DESIRED_FPS as f32);
                 self.flap_timeout -= seconds;
                 if self.input.flap && self.flap_timeout < 0.0 {
                     self.player_flap(seconds);
                 }
+                self.offset -= crate::MOVE_SPEED;
                 self.update_player_pos(seconds);
             }
         }
