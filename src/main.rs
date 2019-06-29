@@ -21,9 +21,9 @@ use std::path;
 
 // game constants
 pub const PLAYER_LIFE: f32 = 1.0;
-pub const FALL_SPEED: f32 = 7.0;
-pub const FLAP_SPEED: f32 = 180.0;
-pub const FLAP_TIMEOUT: f32 = 0.25;
+pub const FALL_SPEED: f32 = 8.5;
+pub const FLAP_SPEED: f32 = 250.0;
+pub const FLAP_TIMEOUT: f32 = 0.35;
 
 pub const DESIRED_FPS: u32 = 60;
 pub const LEVEL_LEN: u16 = 10;
