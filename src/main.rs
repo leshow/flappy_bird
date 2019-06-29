@@ -7,8 +7,7 @@ use assets::Assets;
 use util::*;
 
 use ggez::{
-    audio,
-    audio::SoundSource,
+    audio::{self, SoundSource},
     conf,
     event::{self, EventHandler, KeyCode, KeyMods},
     graphics, nalgebra as na,
@@ -45,6 +44,7 @@ impl Default for InputState {
 
 struct MainState {
     player: Actor,
+    paused: bool,
     level: i32,
     score: i32,
     assets: Assets,
@@ -72,6 +72,7 @@ impl MainState {
             screen_height: ctx.conf.window_mode.height,
             input: InputState::default(),
             flap_timeout: 0.0,
+            paused: true,
         };
 
         Ok(s)
@@ -128,6 +129,19 @@ impl MainState {
         graphics::draw(ctx, &level_display, (level_dest, 0.0, graphics::WHITE))?;
         graphics::draw(ctx, &score_display, (score_dest, 0.0, graphics::WHITE))?;
 
+        Ok(())
+    }
+
+    fn draw_menu(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let msg = &self.assets.message;
+        let params = graphics::DrawParam::new()
+            .dest(translate_coords(
+                Point2::origin(),
+                self.screen_width,
+                self.screen_height - (f32::from(msg.height()) / 2.0) + 35.0,
+            ))
+            .offset(Point2::new(0.5, 0.5));
+        graphics::draw(ctx, msg, params)?;
         Ok(())
     }
     // fn clear_dead_stuff(&mut self) {
@@ -194,12 +208,14 @@ fn draw_bird(
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
-            let seconds = 1.0 / (DESIRED_FPS as f32);
-            self.flap_timeout -= seconds;
-            if self.input.flap && self.flap_timeout < 0.0 {
-                self.player_flap(seconds);
+            if !self.paused {
+                let seconds = 1.0 / (DESIRED_FPS as f32);
+                self.flap_timeout -= seconds;
+                if self.input.flap && self.flap_timeout < 0.0 {
+                    self.player_flap(seconds);
+                }
+                self.update_player_pos(seconds);
             }
-            self.update_player_pos(seconds);
         }
 
         Ok(())
@@ -214,6 +230,10 @@ impl EventHandler for MainState {
             let p = &self.player;
             let screen_dims = (self.screen_width, self.screen_height);
             draw_bird(assets, ctx, p, screen_dims)?;
+        }
+
+        if self.paused {
+            self.draw_menu(ctx)?;
         }
 
         self.draw_hud(ctx)?;
@@ -238,6 +258,9 @@ impl EventHandler for MainState {
     ) {
         match keycode {
             KeyCode::A => {
+                if self.paused {
+                    self.paused = false;
+                }
                 self.input.flap = true;
             }
             KeyCode::P => {

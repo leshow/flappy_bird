@@ -7,7 +7,6 @@ use ggez::{
 };
 use rand::Rng;
 
-
 pub struct Assets {
     pub player_midflap: graphics::Image,
     pub player_upflap: graphics::Image,
@@ -17,6 +16,7 @@ pub struct Assets {
     // bg
     pub bg: graphics::Image,
     pub base: graphics::Image,
+    pub message: graphics::Image,
     //
     pub shot_sound: audio::SpatialSource,
     pub hit_sound: audio::SpatialSource,
@@ -38,6 +38,7 @@ impl Assets {
         //
         let pipe_image = graphics::Image::new(ctx, "/pipe-green.png")?;
         let font = graphics::Font::new(ctx, "/DejaVuSerif.ttf")?;
+        let message = graphics::Image::new(ctx, "/message.png")?;
         // background
         let bg = graphics::Image::new(ctx, "/background-day.png")?;
         let base = graphics::Image::new(ctx, "/base.png")?;
@@ -58,6 +59,7 @@ impl Assets {
             font,
             shot_sound,
             hit_sound,
+            message,
         })
     }
 
