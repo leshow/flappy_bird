@@ -1,8 +1,10 @@
 mod actor;
 mod assets;
+mod util;
 
 use actor::*;
 use assets::Assets;
+use util::*;
 
 use ggez::{
     audio,
@@ -20,6 +22,7 @@ use std::path;
 pub const PLAYER_LIFE: f32 = 1.0;
 pub const FALL_SPEED: f32 = 7.0;
 pub const FLAP_SPEED: f32 = 180.0;
+pub const FLAP_TIMEOUT: f32 = 0.25;
 
 pub const DESIRED_FPS: u32 = 60;
 
@@ -31,18 +34,12 @@ pub const SCREEN_WIDTH: f32 = 1008.0;
 
 #[derive(Debug)]
 struct InputState {
-    xaxis: f32,
-    yaxis: f32,
     flap: bool,
 }
 
 impl Default for InputState {
     fn default() -> Self {
-        InputState {
-            xaxis: 0.0,
-            yaxis: 0.0,
-            flap: false,
-        }
+        InputState { flap: false }
     }
 }
 
@@ -54,6 +51,7 @@ struct MainState {
     screen_width: f32,
     screen_height: f32,
     input: InputState,
+    flap_timeout: f32,
 }
 
 impl MainState {
@@ -73,12 +71,33 @@ impl MainState {
             screen_width: ctx.conf.window_mode.width,
             screen_height: ctx.conf.window_mode.height,
             input: InputState::default(),
+            flap_timeout: 0.0,
         };
 
         Ok(s)
     }
 
+    fn player_flap(&mut self, dt: f32) {
+        self.flap_timeout = crate::FLAP_TIMEOUT;
+        let dir = vec_from_angle(0.0);
+        let flap_vec = dir * crate::FLAP_SPEED;
+        // set constant velocity on flap
+        self.player.velocity = flap_vec * dt;
+        // makes for more "real" physics but is not flappy bird:
+        // player.velocity += flap_vec * dt;
+    }
+
+    fn update_player_pos(&mut self, dt: f32) {
+        let dir = vec_from_angle(0.0);
+        let grav = dir * crate::FALL_SPEED;
+        self.player.velocity -= grav * dt;
+        // let dv = self.player.velocity * dt;
+        self.player.pos += self.player.velocity;
+    }
+
+
     fn draw_bg(&mut self, ctx: &mut Context) -> GameResult<()> {
+        // draw bg
         let bg = &self.assets.bg;
         for tile in 0..=(self.screen_width as u16 / bg.width()) {
             let bg_params =
@@ -127,10 +146,10 @@ impl MainState {
 }
 
 fn print_instructions() {
-    println!("{:-^30}", "Welcome to Flappy Bird!");
+    println!("{:-^60}", "Welcome to Flappy Bird!");
     println!();
     println!("How to play:");
-    println!("<space> to flap-- avoid the pipes!");
+    println!("<space> to flap -- avoid the pipes!");
     println!();
 }
 
@@ -176,10 +195,11 @@ impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             let seconds = 1.0 / (DESIRED_FPS as f32);
-            if self.input.flap {
-                player_flap(&mut self.player, seconds);
+            self.flap_timeout -= seconds;
+            if self.input.flap && self.flap_timeout < 0.0 {
+                self.player_flap(seconds);
             }
-            update_player_pos(&mut self.player, seconds);
+            self.update_player_pos(seconds);
         }
 
         Ok(())
@@ -209,8 +229,6 @@ impl EventHandler for MainState {
         Ok(())
     }
 
-    // Handle key events.  These just map keyboard events
-    // and alter our input state appropriately.
     fn key_down_event(
         &mut self,
         ctx: &mut Context,
