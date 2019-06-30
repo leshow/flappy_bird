@@ -1,10 +1,9 @@
-mod actor;
+#[allow(dead_code)]
+mod actors;
 mod assets;
 mod util;
 
-use actor::*;
-use assets::Assets;
-use util::*;
+use crate::{actors::*, assets::Assets, util::*};
 
 use ggez::{
     audio::{self, SoundSource},
@@ -16,24 +15,22 @@ use ggez::{
     timer, {Context, ContextBuilder, GameResult},
 };
 
-use std::env;
-use std::path;
+use std::{env, path};
 
 // game constants
-pub const PLAYER_LIFE: f32 = 1.0;
-pub const FALL_SPEED: f32 = 12.0;
-pub const FLAP_SPEED: f32 = 350.0;
+pub const PLAYER_LIFE: f32 = 1.;
+pub const FALL_SPEED: f32 = 12.;
+pub const FLAP_SPEED: f32 = 350.;
 pub const FLAP_TIMEOUT: f32 = 0.35;
 
 pub const DESIRED_FPS: u32 = 60;
-pub const LEVEL_LEN: u16 = 10;
-pub const MOVE_SPEED: f32 = 2.0;
+pub const MOVE_SPEED: f32 = 2.;
 
-pub const PLAYER_BBOX: f32 = 12.0;
-pub const PIPE_BBOX: f32 = 12.0;
+pub const PLAYER_BBOX: f32 = 12.;
+pub const PIPE_BBOX: f32 = 12.;
 
-pub const SCREEN_HEIGHT: f32 = 624.0;
-pub const SCREEN_WIDTH: f32 = 1008.0;
+pub const SCREEN_HEIGHT: f32 = 624.;
+pub const SCREEN_WIDTH: f32 = 1008.;
 
 #[derive(Debug)]
 struct InputState {
@@ -47,7 +44,7 @@ impl Default for InputState {
 }
 
 struct MainState {
-    player: Actor,
+    player: Player,
     paused: bool,
     level: i32,
     score: i32,
@@ -66,7 +63,7 @@ impl MainState {
         print_instructions();
 
         let assets = Assets::new(ctx)?;
-        let player = Actor::new(ActorType::Player);
+        let player = Player::new();
 
         let s = MainState {
             player,
@@ -76,29 +73,12 @@ impl MainState {
             screen_width: ctx.conf.window_mode.width,
             screen_height: ctx.conf.window_mode.height,
             input: InputState::default(),
-            flap_timeout: 0.0,
+            flap_timeout: 0.,
             paused: true,
-            offset: 0.0,
+            offset: 0.,
         };
 
         Ok(s)
-    }
-
-    fn player_flap(&mut self, dt: f32) {
-        self.flap_timeout = crate::FLAP_TIMEOUT;
-        let dir = vec_from_angle(0.0);
-        let flap_vec = dir * crate::FLAP_SPEED;
-        // set constant velocity on flap
-        self.player.velocity = flap_vec * dt;
-        // makes for more "real" physics but is not flappy bird:
-        // player.velocity += flap_vec * dt;
-    }
-
-    fn update_player_pos(&mut self, dt: f32) {
-        let dir = vec_from_angle(0.0);
-        let grav = dir * crate::FALL_SPEED;
-        self.player.velocity -= grav * dt;
-        self.player.pos += self.player.velocity;
     }
 
 
@@ -108,16 +88,16 @@ impl MainState {
         let bg = &mut self.assets.bg;
         // draw up to 2 panels ahead
         for i in 0..=2 {
-            let first_bg = -1.0 * (self.offset - (self.offset % f32::from(bg.bg_w)));
+            let first_bg = -1. * (self.offset - (self.offset % f32::from(bg.bg_w)));
             // draw bg
             for tile in 0..=(self.screen_width as u16 / bg.bg_w) {
                 let bg_params = graphics::DrawParam::new().dest(Point2::new(
                     first_bg + f32::from(i * bg.bg_w) + f32::from(tile * bg.bg_w),
-                    0.0,
+                    0.,
                 ));
                 bg.bg.add(bg_params);
             }
-            let first_base = -1.0 * (self.offset - (self.offset % f32::from(bg.base_w)));
+            let first_base = -1. * (self.offset - (self.offset % f32::from(bg.base_w)));
             // draw base
             for tile in 0..=(self.screen_width as u16 / bg.base_w) {
                 let base_params = graphics::DrawParam::new().dest(Point2::new(
@@ -130,27 +110,27 @@ impl MainState {
         graphics::draw(
             ctx,
             &bg.bg,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.0)),
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
         )?;
         graphics::draw(
             ctx,
             &bg.base,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.0)),
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
         )?;
 
         Ok(())
     }
 
     fn draw_hud(&mut self, ctx: &mut Context) -> GameResult<()> {
-        let score_dest = Point2::new(10.0, 10.0);
-        let level_dest = Point2::new(100.0, 10.0);
+        let score_dest = Point2::new(10., 10.);
+        let level_dest = Point2::new(100., 10.);
 
         let level_str = format!("Level: {}", self.level);
         let score_str = format!("Score: {}", self.score);
-        let level_display = graphics::Text::new((level_str, self.assets.font, 20.0));
-        let score_display = graphics::Text::new((score_str, self.assets.font, 20.0));
-        graphics::draw(ctx, &level_display, (level_dest, 0.0, graphics::WHITE))?;
-        graphics::draw(ctx, &score_display, (score_dest, 0.0, graphics::WHITE))?;
+        let level_display = graphics::Text::new((level_str, self.assets.font, 20.));
+        let score_display = graphics::Text::new((score_str, self.assets.font, 20.));
+        graphics::draw(ctx, &level_display, (level_dest, 0., graphics::WHITE))?;
+        graphics::draw(ctx, &score_display, (score_dest, 0., graphics::WHITE))?;
 
         Ok(())
     }
@@ -161,14 +141,14 @@ impl MainState {
             .dest(translate_coords(
                 Point2::origin(),
                 self.screen_width,
-                self.screen_height - (f32::from(msg.height()) / 2.0) + 35.0,
+                self.screen_height - (f32::from(msg.height()) / 2.) + 35.,
             ))
             .offset(Point2::new(0.5, 0.5));
         graphics::draw(ctx, msg, params)?;
         Ok(())
     }
     // fn clear_dead_stuff(&mut self) {
-    //     self.pipes.retain(|s| s.pos.x > 0.0);
+    //     self.pipes.retain(|s| s.pos.x > 0.);
     // }
 
     // fn update_ui(&mut self, ctx: &mut Context) {
@@ -194,8 +174,8 @@ fn print_instructions() {
 /// has Y pointing up and the origin at the center,
 /// to the screen coordinate system, which has Y
 fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -> Point2<f32> {
-    let x = point.x + screen_width / 2.0;
-    let y = screen_height - (point.y + screen_height / 2.0);
+    let x = point.x + screen_width / 2.;
+    let y = screen_height - (point.y + screen_height / 2.);
     Point2::new(x, y)
 }
 
@@ -216,13 +196,14 @@ fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -
 fn draw_bird(
     assets: &mut Assets,
     ctx: &mut Context,
-    actor: &Actor,
+    actor: &Player,
     screen_dims: (f32, f32),
 ) -> GameResult {
     let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
-    let image = assets.actor_image(actor);
+    let image = assets.player_image(actor);
     let drawparams = graphics::DrawParam::new()
         .dest(pos)
+        .rotation(actor.facing)
         .offset(Point2::new(0.5, 0.5));
     graphics::draw(ctx, image, drawparams)
 }
@@ -232,13 +213,14 @@ impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             if !self.paused {
-                let seconds = 1.0 / (crate::DESIRED_FPS as f32);
+                let seconds = 1. / (crate::DESIRED_FPS as f32);
                 self.flap_timeout -= seconds;
-                if self.input.flap && self.flap_timeout < 0.0 {
-                    self.player_flap(seconds);
+                if self.input.flap && self.flap_timeout < 0. {
+                    self.flap_timeout = crate::FLAP_TIMEOUT;
+                    self.player.flap(seconds);
                 }
                 self.offset -= crate::MOVE_SPEED;
-                self.update_player_pos(seconds);
+                self.player.update_pos(seconds);
             }
         }
 
@@ -302,7 +284,7 @@ impl EventHandler for MainState {
             KeyCode::A => {
                 self.input.flap = false;
                 // variable height flap
-                // let dir = vec_from_angle(0.0);
+                // let dir = vec_from_angle(0.);
                 // let flap_vec = dir * (crate::FLAP_SPEED / 2.0);
                 // if self.player.velocity < flap_vec {
                 //     self.player.velocity = flap_vec;
