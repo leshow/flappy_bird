@@ -21,8 +21,8 @@ use std::path;
 
 // game constants
 pub const PLAYER_LIFE: f32 = 1.0;
-pub const FALL_SPEED: f32 = 8.5;
-pub const FLAP_SPEED: f32 = 250.0;
+pub const FALL_SPEED: f32 = 12.0;
+pub const FLAP_SPEED: f32 = 350.0;
 pub const FLAP_TIMEOUT: f32 = 0.35;
 
 pub const DESIRED_FPS: u32 = 60;
@@ -106,19 +106,22 @@ impl MainState {
         self.assets.bg.bg.clear();
         self.assets.bg.base.clear();
         let bg = &mut self.assets.bg;
-        for i in 0..=LEVEL_LEN {
+        // draw up to 2 panels ahead
+        for i in 0..=2 {
+            let first_bg = -1.0 * (self.offset - (self.offset % f32::from(bg.bg_w)));
             // draw bg
             for tile in 0..=(self.screen_width as u16 / bg.bg_w) {
                 let bg_params = graphics::DrawParam::new().dest(Point2::new(
-                    f32::from(i * bg.bg_w) + f32::from(tile * bg.bg_w),
+                    first_bg + f32::from(i * bg.bg_w) + f32::from(tile * bg.bg_w),
                     0.0,
                 ));
                 bg.bg.add(bg_params);
             }
+            let first_base = -1.0 * (self.offset - (self.offset % f32::from(bg.base_w)));
             // draw base
             for tile in 0..=(self.screen_width as u16 / bg.base_w) {
                 let base_params = graphics::DrawParam::new().dest(Point2::new(
-                    f32::from(i * bg.base_w) + f32::from(tile * bg.base_w),
+                    first_base + f32::from(i * bg.base_w) + f32::from(tile * bg.base_w),
                     f32::from(bg.bg_h),
                 ));
                 bg.base.add(base_params);
