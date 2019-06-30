@@ -1,9 +1,10 @@
-use crate::util::vec_from_angle;
+use crate::{assets::Assets, util::vec_from_angle};
 
 use ggez::{
     nalgebra as na,
     nalgebra::{Point2, Vector2},
 };
+use rand::Rng;
 
 pub trait Actor {
     fn new() -> Self;
@@ -79,6 +80,12 @@ impl Default for Pipe {
     }
 }
 
+impl Pipe {
+    pub const PIPE_GAP: f32 = 100.;
+    pub const BETWEEN_PIPE: f32 = 300.;
+    pub const FIRST_PIPE_X: f32 = 200.;
+}
+
 impl Actor for Pipe {
     fn new() -> Self {
         Pipe {
@@ -91,4 +98,33 @@ impl Actor for Pipe {
     fn update_pos(&mut self, _dt: f32) {
         unimplemented!();
     }
+}
+
+pub fn gen_pipes(assets: &Assets, screen_width: f32, screen_height: f32) -> Vec<(Pipe, Pipe)> {
+    let first_pipe = Point2::new(
+        (screen_width / 2.) + Pipe::FIRST_PIPE_X,
+        screen_height - f32::from(assets.bg.base_h + assets.bg.pipe_img.height()), // sits on base
+    );
+    let mut rng = rand::thread_rng();
+
+    (1..=10)
+        .map(|i| {
+            let new_x = i as f32 * Pipe::BETWEEN_PIPE;
+            let opening: f32 = rng.gen_range(0., screen_height - f32::from(assets.bg.base_h)) / 2.;
+            let gap = Pipe::PIPE_GAP / 2.;
+            // bottom pipe
+            let pos = Point2::new(first_pipe.x + new_x, first_pipe.y + gap + opening);
+            let mut bottom_pipe = Pipe::new();
+            bottom_pipe.pos = pos;
+            // top pipe
+            let mut top_pipe = Pipe::new();
+            top_pipe.pos = Point2::new(
+                first_pipe.x + new_x + f32::from(assets.bg.pipe_img.width()),
+                first_pipe.y - gap + opening,
+            );
+            top_pipe.facing = std::f32::consts::PI; // upside down
+
+            (bottom_pipe, top_pipe)
+        })
+        .collect()
 }

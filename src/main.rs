@@ -3,7 +3,11 @@ mod actors;
 mod assets;
 mod util;
 
-use crate::{actors::*, assets::Assets, util::*};
+use crate::{
+    actors::{Actor, Pipe, Player},
+    assets::Assets,
+    util::*,
+};
 
 use ggez::{
     audio::{self, SoundSource},
@@ -19,8 +23,8 @@ use std::{env, path};
 
 // game constants
 pub const PLAYER_LIFE: f32 = 1.;
-pub const FALL_SPEED: f32 = 12.;
-pub const FLAP_SPEED: f32 = 350.;
+pub const FALL_SPEED: f32 = 15.;
+pub const FLAP_SPEED: f32 = 320.;
 pub const FLAP_TIMEOUT: f32 = 0.35;
 
 pub const DESIRED_FPS: u32 = 60;
@@ -28,7 +32,6 @@ pub const MOVE_SPEED: f32 = 2.;
 
 pub const PLAYER_BBOX: f32 = 12.;
 pub const PIPE_BBOX: f32 = 12.;
-pub const PIPE_SPACING: f32 = 100.;
 
 pub const SCREEN_HEIGHT: f32 = 624.;
 pub const SCREEN_WIDTH: f32 = 1008.;
@@ -58,31 +61,6 @@ struct MainState {
     offset: f32,
 }
 
-fn gen_pipes(assets: &Assets, screen_width: f32, screen_height: f32) -> Vec<(Pipe, Pipe)> {
-    let first_pipe = Point2::new(
-        f32::from(screen_width / 2.) + 200.,
-        screen_height - f32::from(assets.bg.base_h + assets.bg.pipe_img.height()),
-    );
-
-    (1..=10)
-        .map(|i| {
-            let new_x = i as f32 * 100.;
-            // bottom pipe
-            let pos = Point2::new(first_pipe.x + new_x, first_pipe.y);
-            let mut bottom_pipe = Pipe::new();
-            bottom_pipe.pos = pos;
-            // top pipe
-            let mut top_pipe = Pipe::new();
-            top_pipe.pos = Point2::new(
-                first_pipe.x + new_x + f32::from(assets.bg.pipe_img.width()),
-                first_pipe.y - crate::PIPE_SPACING,
-            );
-            top_pipe.facing = std::f32::consts::PI; // upside down
-
-            (bottom_pipe, top_pipe)
-        })
-        .collect()
-}
 
 impl MainState {
     fn new(ctx: &mut Context) -> GameResult<MainState> {
@@ -94,7 +72,7 @@ impl MainState {
         let player = Player::new();
         let screen_width = ctx.conf.window_mode.width;
         let screen_height = ctx.conf.window_mode.height;
-        let pipes = gen_pipes(&assets, screen_width, screen_height);
+        let pipes = actors::gen_pipes(&assets, screen_width, screen_height);
 
         let s = MainState {
             player,
@@ -116,11 +94,10 @@ impl MainState {
 
     fn draw_bg(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.assets.bg.bg.clear();
-        self.assets.bg.base.clear();
         let bg = &mut self.assets.bg;
+        let first_bg = -1. * (self.offset - (self.offset % f32::from(bg.bg_w)));
         // draw up to 2 panels ahead
         for i in 0..=2 {
-            let first_bg = -1. * (self.offset - (self.offset % f32::from(bg.bg_w)));
             // draw bg
             for tile in 0..=(self.screen_width as u16 / bg.bg_w) {
                 let bg_params = graphics::DrawParam::new().dest(Point2::new(
@@ -129,7 +106,27 @@ impl MainState {
                 ));
                 bg.bg.add(bg_params);
             }
-            let first_base = -1. * (self.offset - (self.offset % f32::from(bg.base_w)));
+        }
+        graphics::draw(
+            ctx,
+            &bg.bg,
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+        )?;
+        graphics::draw(
+            ctx,
+            &bg.base,
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+        )?;
+
+        Ok(())
+    }
+
+    fn draw_base(&mut self, ctx: &mut Context) -> GameResult<()> {
+        self.assets.bg.base.clear();
+        let bg = &mut self.assets.bg;
+        let first_base = -1. * (self.offset - (self.offset % f32::from(bg.base_w)));
+        // draw up to 2 panels ahead
+        for i in 0..=2 {
             // draw base
             for tile in 0..=(self.screen_width as u16 / bg.base_w) {
                 let base_params = graphics::DrawParam::new().dest(Point2::new(
@@ -139,11 +136,6 @@ impl MainState {
                 bg.base.add(base_params);
             }
         }
-        graphics::draw(
-            ctx,
-            &bg.bg,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
-        )?;
         graphics::draw(
             ctx,
             &bg.base,
@@ -291,6 +283,7 @@ impl EventHandler for MainState {
         graphics::clear(ctx, graphics::WHITE);
         self.draw_bg(ctx)?;
         self.draw_pipes(ctx)?;
+        self.draw_base(ctx)?;
 
         self.draw_bird(ctx)?;
 
