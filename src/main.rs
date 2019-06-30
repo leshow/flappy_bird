@@ -59,6 +59,7 @@ struct MainState {
     input: InputState,
     flap_timeout: f32,
     offset: f32,
+    frames: u64,
 }
 
 
@@ -86,6 +87,7 @@ impl MainState {
             flap_timeout: 0.,
             paused: true,
             offset: 0.,
+            frames: 0
         };
 
         Ok(s)
@@ -147,8 +149,6 @@ impl MainState {
 
     fn draw_pipes(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.assets.bg.pipe.clear();
-        // let base_h = self.assets.bg.base_h;
-        // let first_pipe = -1. * (self.offset - (self.offset % 120.)); // replace w/ pip distance
         let pipe_batch = &mut self.assets.bg.pipe;
 
         for (btm, top) in &self.pipes {
@@ -163,11 +163,6 @@ impl MainState {
             pipe_batch.add(btm_param);
             pipe_batch.add(top_param);
         }
-        // let param = graphics::DrawParam::new().dest(Point2::new(
-        //     first_pipe + f32::from(self.screen_width / 2.),
-        //     self.screen_height - f32::from(base_h + self.assets.bg.pipe_img.height()),
-        // ));
-        // pipe_batch.add(param);
 
         graphics::draw(
             ctx,
@@ -206,7 +201,7 @@ impl MainState {
 
     fn draw_bird(&mut self, ctx: &mut Context) -> GameResult {
         let pos = translate_coords(self.player.pos, self.screen_width, self.screen_height);
-        let image = self.assets.player_image(&self.player);
+        let image = self.assets.player_image(&self.player, self.frames % 15);
         let drawparams = graphics::DrawParam::new()
             .dest(pos)
             .rotation(self.player.facing)
@@ -214,9 +209,9 @@ impl MainState {
         graphics::draw(ctx, image, drawparams)
     }
 
-    // fn clear_dead_stuff(&mut self) {
-    //     self.pipes.retain(|s| s.pos.x > 0.);
-    // }
+    fn clear_pipes(&mut self) {
+        self.pipes.retain(|s| s.0.pos.x > 0.);
+    }
 
     // fn update_ui(&mut self, ctx: &mut Context) {
     //     let score_str = format!("Score: {}", self.score);
@@ -272,6 +267,7 @@ impl EventHandler for MainState {
                     self.player.flap(seconds);
                 }
                 self.offset -= crate::MOVE_SPEED;
+                self.frames += 1;
                 self.player.update_pos(seconds);
             }
         }
@@ -292,6 +288,7 @@ impl EventHandler for MainState {
         }
 
         self.draw_hud(ctx)?;
+        self.clear_pipes();
 
         graphics::present(ctx)?;
         // And yield the timeslice

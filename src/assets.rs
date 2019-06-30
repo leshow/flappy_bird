@@ -114,15 +114,17 @@ impl Assets {
         })
     }
 
-    pub fn player_image(&mut self, actor: &Player) -> &mut graphics::Image {
+    pub fn player_image(&mut self, actor: &Player, frames: u64) -> &mut graphics::Image {
         // if less than 0 point down
-        if actor.velocity.y < na::zero::<Vector2<_>>().y {
+        if actor.velocity.y < -3. {
             return &mut self.player.player_downflap;
         }
-        if actor.velocity.y > 1. {
+        if frames <= 5 {
             &mut self.player.player_upflap
-        } else {
+        } else if frames <= 10 {
             &mut self.player.player_midflap
+        } else {
+            &mut self.player.player_downflap
         }
     }
 }
