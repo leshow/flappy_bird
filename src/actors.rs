@@ -21,7 +21,8 @@ pub struct Player {
 #[derive(Debug, PartialEq, PartialOrd)]
 pub struct Pipe {
     pub pos: Point2<f32>,
-    pub velocity: Vector2<f32>,
+    pub facing: f32,
+    // pub velocity: Vector2<f32>,
     pub bbox_size: f32,
 }
 
@@ -78,12 +79,16 @@ impl Default for Pipe {
     }
 }
 
-impl Pipe {
-    pub fn new() -> Self {
+impl Actor for Pipe {
+    fn new() -> Self {
         Pipe {
             pos: Point2::origin(),
-            velocity: na::zero(),
+            facing: 0.,
             bbox_size: crate::PIPE_BBOX,
         }
+    }
+
+    fn update_pos(&mut self, _dt: f32) {
+        unimplemented!();
     }
 }

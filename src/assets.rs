@@ -17,7 +17,8 @@ pub struct BgAssets {
     pub bg_w: u16,
     pub bg_h: u16,
     pub message: graphics::Image,
-    pub pipe_image: graphics::Image,
+    pub pipe_img: graphics::Image,
+    pub pipe: SpriteBatch,
 }
 
 impl BgAssets {
@@ -34,8 +35,8 @@ impl BgAssets {
         let base_w = base_img.width();
         let base_h = base_img.height();
         let base = SpriteBatch::new(base_img);
-        // let pipe_image = SpriteBatch::new(graphics::Image::new(ctx, "/pipe-green.png")?);
-        let pipe_image = graphics::Image::new(ctx, "/pipe-green.png")?;
+        let pipe_img = graphics::Image::new(ctx, "/pipe-green.png")?;
+        let pipe = SpriteBatch::new(pipe_img.clone());
 
         Ok(BgAssets {
             base,
@@ -44,7 +45,8 @@ impl BgAssets {
             bg,
             bg_w,
             bg_h,
-            pipe_image,
+            pipe_img,
+            pipe,
             message,
         })
     }

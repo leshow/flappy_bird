@@ -28,6 +28,7 @@ pub const MOVE_SPEED: f32 = 2.;
 
 pub const PLAYER_BBOX: f32 = 12.;
 pub const PIPE_BBOX: f32 = 12.;
+pub const PIPE_SPACING: f32 = 100.;
 
 pub const SCREEN_HEIGHT: f32 = 624.;
 pub const SCREEN_WIDTH: f32 = 1008.;
@@ -45,6 +46,7 @@ impl Default for InputState {
 
 struct MainState {
     player: Player,
+    pipes: Vec<(Pipe, Pipe)>, // pipe & upside down pipe
     paused: bool,
     level: i32,
     score: i32,
@@ -56,6 +58,32 @@ struct MainState {
     offset: f32,
 }
 
+fn gen_pipes(assets: &Assets, screen_width: f32, screen_height: f32) -> Vec<(Pipe, Pipe)> {
+    let first_pipe = Point2::new(
+        f32::from(screen_width / 2.) + 200.,
+        screen_height - f32::from(assets.bg.base_h + assets.bg.pipe_img.height()),
+    );
+
+    (1..=10)
+        .map(|i| {
+            let new_x = i as f32 * 100.;
+            // bottom pipe
+            let pos = Point2::new(first_pipe.x + new_x, first_pipe.y);
+            let mut bottom_pipe = Pipe::new();
+            bottom_pipe.pos = pos;
+            // top pipe
+            let mut top_pipe = Pipe::new();
+            top_pipe.pos = Point2::new(
+                first_pipe.x + new_x + f32::from(assets.bg.pipe_img.width()),
+                first_pipe.y - crate::PIPE_SPACING,
+            );
+            top_pipe.facing = std::f32::consts::PI; // upside down
+
+            (bottom_pipe, top_pipe)
+        })
+        .collect()
+}
+
 impl MainState {
     fn new(ctx: &mut Context) -> GameResult<MainState> {
         println!("Game resource path: {:?}", ctx.filesystem);
@@ -64,14 +92,18 @@ impl MainState {
 
         let assets = Assets::new(ctx)?;
         let player = Player::new();
+        let screen_width = ctx.conf.window_mode.width;
+        let screen_height = ctx.conf.window_mode.height;
+        let pipes = gen_pipes(&assets, screen_width, screen_height);
 
         let s = MainState {
             player,
+            pipes,
             level: 0,
             score: 0,
             assets,
-            screen_width: ctx.conf.window_mode.width,
-            screen_height: ctx.conf.window_mode.height,
+            screen_width,
+            screen_height,
             input: InputState::default(),
             flap_timeout: 0.,
             paused: true,
@@ -121,6 +153,38 @@ impl MainState {
         Ok(())
     }
 
+    fn draw_pipes(&mut self, ctx: &mut Context) -> GameResult<()> {
+        self.assets.bg.pipe.clear();
+        // let base_h = self.assets.bg.base_h;
+        // let first_pipe = -1. * (self.offset - (self.offset % 120.)); // replace w/ pip distance
+        let pipe_batch = &mut self.assets.bg.pipe;
+
+        for (btm, top) in &self.pipes {
+            let btm_param = graphics::DrawParam::new()
+                .dest(btm.pos)
+                .rotation(btm.facing);
+
+            let top_param = graphics::DrawParam::new()
+                .dest(top.pos)
+                .rotation(top.facing);
+
+            pipe_batch.add(btm_param);
+            pipe_batch.add(top_param);
+        }
+        // let param = graphics::DrawParam::new().dest(Point2::new(
+        //     first_pipe + f32::from(self.screen_width / 2.),
+        //     self.screen_height - f32::from(base_h + self.assets.bg.pipe_img.height()),
+        // ));
+        // pipe_batch.add(param);
+
+        graphics::draw(
+            ctx,
+            &self.assets.bg.pipe,
+            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+        )?;
+        Ok(())
+    }
+
     fn draw_hud(&mut self, ctx: &mut Context) -> GameResult<()> {
         let score_dest = Point2::new(10., 10.);
         let level_dest = Point2::new(100., 10.);
@@ -147,6 +211,17 @@ impl MainState {
         graphics::draw(ctx, msg, params)?;
         Ok(())
     }
+
+    fn draw_bird(&mut self, ctx: &mut Context) -> GameResult {
+        let pos = translate_coords(self.player.pos, self.screen_width, self.screen_height);
+        let image = self.assets.player_image(&self.player);
+        let drawparams = graphics::DrawParam::new()
+            .dest(pos)
+            .rotation(self.player.facing)
+            .offset(Point2::new(0.5, 0.5));
+        graphics::draw(ctx, image, drawparams)
+    }
+
     // fn clear_dead_stuff(&mut self) {
     //     self.pipes.retain(|s| s.pos.x > 0.);
     // }
@@ -193,21 +268,6 @@ fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -
 //     graphics::draw(ctx, image, drawparams)
 // }
 
-fn draw_bird(
-    assets: &mut Assets,
-    ctx: &mut Context,
-    actor: &Player,
-    screen_dims: (f32, f32),
-) -> GameResult {
-    let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
-    let image = assets.player_image(actor);
-    let drawparams = graphics::DrawParam::new()
-        .dest(pos)
-        .rotation(actor.facing)
-        .offset(Point2::new(0.5, 0.5));
-    graphics::draw(ctx, image, drawparams)
-}
-
 
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
@@ -230,13 +290,9 @@ impl EventHandler for MainState {
     fn draw(&mut self, ctx: &mut Context) -> GameResult {
         graphics::clear(ctx, graphics::WHITE);
         self.draw_bg(ctx)?;
+        self.draw_pipes(ctx)?;
 
-        {
-            let assets = &mut self.assets;
-            let p = &self.player;
-            let screen_dims = (self.screen_width, self.screen_height);
-            draw_bird(assets, ctx, p, screen_dims)?;
-        }
+        self.draw_bird(ctx)?;
 
         if self.paused {
             self.draw_menu(ctx)?;
