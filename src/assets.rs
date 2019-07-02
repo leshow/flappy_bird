@@ -16,7 +16,6 @@ pub struct BgAssets {
     pub bg: SpriteBatch,
     pub bg_w: u16,
     pub bg_h: u16,
-    pub message: graphics::Image,
     pub pipe_img: graphics::Image,
     pub pipe: SpriteBatch,
 }
@@ -24,7 +23,6 @@ pub struct BgAssets {
 impl BgAssets {
     #[inline]
     pub fn new(ctx: &mut Context) -> GameResult<Self> {
-        let message = graphics::Image::new(ctx, "/message.png")?;
         // background
         let bg_img = graphics::Image::new(ctx, "/background-day.png")?;
         let bg_w = bg_img.width();
@@ -47,7 +45,6 @@ impl BgAssets {
             bg_h,
             pipe_img,
             pipe,
-            message,
         })
     }
 }
@@ -86,6 +83,8 @@ impl PlayerAssets {
 pub struct Assets {
     pub player: PlayerAssets,
     pub font: graphics::Font,
+    pub gameover: graphics::Image,
+    pub message: graphics::Image,
     // bg
     pub bg: BgAssets,
     //
@@ -99,6 +98,8 @@ impl Assets {
         //
         let font = graphics::Font::new(ctx, "/DejaVuSerif.ttf")?;
 
+        let gameover = graphics::Image::new(ctx, "/gameover.png")?;
+        let message = graphics::Image::new(ctx, "/message.png")?;
         let mut shot_sound = audio::SpatialSource::new(ctx, "/pew.ogg")?;
         let mut hit_sound = audio::SpatialSource::new(ctx, "/boom.ogg")?;
 
@@ -108,6 +109,8 @@ impl Assets {
         Ok(Assets {
             player: PlayerAssets::new(ctx)?,
             font,
+            message,
+            gameover,
             shot_sound,
             hit_sound,
             bg: BgAssets::new(ctx)?,

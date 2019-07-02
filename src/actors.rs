@@ -16,7 +16,7 @@ pub struct Player {
     pub pos: Point2<f32>,
     pub velocity: Vector2<f32>,
     pub facing: f32,
-    pub bbox_size: f32,
+    pub bbox_size: (f32, f32),
 }
 
 #[derive(Debug, PartialEq, PartialOrd)]
@@ -24,7 +24,7 @@ pub struct Pipe {
     pub pos: Point2<f32>,
     pub facing: f32,
     // pub velocity: Vector2<f32>,
-    pub bbox_size: f32,
+    pub bbox_size: (f32, f32),
 }
 
 impl Player {
@@ -40,7 +40,6 @@ impl Player {
         // player.velocity += flap_vec * dt;
         self.facing = Player::UP_ANGLE_MAX;
     }
-
 }
 
 impl Actor for Player {
@@ -48,7 +47,7 @@ impl Actor for Player {
         Player {
             pos: Point2::origin(),
             velocity: na::zero(),
-            bbox_size: crate::PLAYER_BBOX,
+            bbox_size: (32., 24.),
             facing: 0.,
         }
     }
@@ -81,7 +80,7 @@ impl Default for Pipe {
 }
 
 impl Pipe {
-    pub const PIPE_GAP: f32 = 100.;
+    pub const PIPE_GAP: f32 = 50.;
     pub const BETWEEN_PIPE: f32 = 300.;
     pub const FIRST_PIPE_X: f32 = 200.;
 }
@@ -91,7 +90,7 @@ impl Actor for Pipe {
         Pipe {
             pos: Point2::origin(),
             facing: 0.,
-            bbox_size: crate::PIPE_BBOX,
+            bbox_size: (52., 320.),
         }
     }
 
@@ -100,29 +99,24 @@ impl Actor for Pipe {
     }
 }
 
-pub fn gen_pipes(assets: &Assets, screen_width: f32, screen_height: f32) -> Vec<(Pipe, Pipe)> {
-    let first_pipe = Point2::new(
-        (screen_width / 2.) + Pipe::FIRST_PIPE_X,
-        screen_height - f32::from(assets.bg.base_h + assets.bg.pipe_img.height()), // sits on base
-    );
+pub fn gen_pipes(assets: &Assets, screen_width: f32) -> Vec<(Pipe, Pipe)> {
+    let height = f32::from(assets.bg.bg_h);
+    let pipe_h = f32::from(assets.bg.pipe_img.height()) / 2.;
+    let first_pipe = Point2::new((screen_width / 2.) + Pipe::FIRST_PIPE_X, height - pipe_h);
     let mut rng = rand::thread_rng();
 
     (1..=10)
         .map(|i| {
             let new_x = i as f32 * Pipe::BETWEEN_PIPE;
-            let opening: f32 = rng.gen_range(0., screen_height - f32::from(assets.bg.base_h)) / 2.;
-            let gap = Pipe::PIPE_GAP / 2.;
+            let opening: f32 = rng.gen_range(150., height - 150.);
             // bottom pipe
-            let pos = Point2::new(first_pipe.x + new_x, first_pipe.y + gap + opening);
+            let pos = Point2::new(first_pipe.x + new_x, opening + Pipe::PIPE_GAP + pipe_h);
             let mut bottom_pipe = Pipe::new();
             bottom_pipe.pos = pos;
             // top pipe
             let mut top_pipe = Pipe::new();
-            top_pipe.pos = Point2::new(
-                first_pipe.x + new_x + f32::from(assets.bg.pipe_img.width()),
-                first_pipe.y - gap + opening,
-            );
-            top_pipe.facing = std::f32::consts::PI; // upside down
+            top_pipe.pos = Point2::new(first_pipe.x + new_x, opening - Pipe::PIPE_GAP - pipe_h);
+            top_pipe.facing = std::f32::consts::PI;
 
             (bottom_pipe, top_pipe)
         })

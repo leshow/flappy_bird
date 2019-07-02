@@ -6,16 +6,15 @@ mod util;
 use crate::{
     actors::{Actor, Pipe, Player},
     assets::Assets,
-    util::*,
 };
 
 use ggez::{
     audio::{self, SoundSource},
     conf,
     event::{self, EventHandler, KeyCode, KeyMods},
-    graphics::{self, spritebatch::SpriteBatch},
+    graphics::{self, spritebatch::SpriteBatch, DrawParam},
     nalgebra as na,
-    nalgebra::{Point2, Vector2},
+    nalgebra::Point2,
     timer, {Context, ContextBuilder, GameResult},
 };
 
@@ -60,8 +59,8 @@ struct MainState {
     flap_timeout: f32,
     offset: f32,
     frames: u64,
+    gameover: bool,
 }
-
 
 impl MainState {
     fn new(ctx: &mut Context) -> GameResult<MainState> {
@@ -73,7 +72,7 @@ impl MainState {
         let player = Player::new();
         let screen_width = ctx.conf.window_mode.width;
         let screen_height = ctx.conf.window_mode.height;
-        let pipes = actors::gen_pipes(&assets, screen_width, screen_height);
+        let pipes = actors::gen_pipes(&assets, screen_width);
 
         let s = MainState {
             player,
@@ -86,13 +85,13 @@ impl MainState {
             input: InputState::default(),
             flap_timeout: 0.,
             paused: true,
+            gameover: false,
             offset: 0.,
-            frames: 0
+            frames: 0,
         };
 
         Ok(s)
     }
-
 
     fn draw_bg(&mut self, ctx: &mut Context) -> GameResult<()> {
         self.assets.bg.bg.clear();
@@ -102,7 +101,7 @@ impl MainState {
         for i in 0..=2 {
             // draw bg
             for tile in 0..=(self.screen_width as u16 / bg.bg_w) {
-                let bg_params = graphics::DrawParam::new().dest(Point2::new(
+                let bg_params = DrawParam::new().dest(Point2::new(
                     first_bg + f32::from(i * bg.bg_w) + f32::from(tile * bg.bg_w),
                     0.,
                 ));
@@ -112,12 +111,12 @@ impl MainState {
         graphics::draw(
             ctx,
             &bg.bg,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+            DrawParam::new().dest(Point2::new(self.offset, 0.)),
         )?;
         graphics::draw(
             ctx,
             &bg.base,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+            DrawParam::new().dest(Point2::new(self.offset, 0.)),
         )?;
 
         Ok(())
@@ -131,7 +130,7 @@ impl MainState {
         for i in 0..=2 {
             // draw base
             for tile in 0..=(self.screen_width as u16 / bg.base_w) {
-                let base_params = graphics::DrawParam::new().dest(Point2::new(
+                let base_params = DrawParam::new().dest(Point2::new(
                     first_base + f32::from(i * bg.base_w) + f32::from(tile * bg.base_w),
                     f32::from(bg.bg_h),
                 ));
@@ -141,7 +140,7 @@ impl MainState {
         graphics::draw(
             ctx,
             &bg.base,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+            DrawParam::new().dest(Point2::new(self.offset, 0.)),
         )?;
 
         Ok(())
@@ -152,13 +151,16 @@ impl MainState {
         let pipe_batch = &mut self.assets.bg.pipe;
 
         for (btm, top) in &self.pipes {
-            let btm_param = graphics::DrawParam::new()
+            // place pipes by the center of their sprite
+            let btm_param = DrawParam::new()
                 .dest(btm.pos)
-                .rotation(btm.facing);
+                .rotation(btm.facing)
+                .offset(Point2::new(0.5, 0.5));
 
-            let top_param = graphics::DrawParam::new()
+            let top_param = DrawParam::new()
                 .dest(top.pos)
-                .rotation(top.facing);
+                .rotation(top.facing)
+                .offset(Point2::new(0.5, 0.5));
 
             pipe_batch.add(btm_param);
             pipe_batch.add(top_param);
@@ -167,7 +169,7 @@ impl MainState {
         graphics::draw(
             ctx,
             &self.assets.bg.pipe,
-            graphics::DrawParam::new().dest(Point2::new(self.offset, 0.)),
+            DrawParam::new().dest(Point2::new(self.offset, 0.)),
         )?;
         Ok(())
     }
@@ -187,8 +189,8 @@ impl MainState {
     }
 
     fn draw_menu(&mut self, ctx: &mut Context) -> GameResult<()> {
-        let msg = &self.assets.bg.message;
-        let params = graphics::DrawParam::new()
+        let msg = &self.assets.message;
+        let params = DrawParam::new()
             .dest(translate_coords(
                 Point2::origin(),
                 self.screen_width,
@@ -196,13 +198,14 @@ impl MainState {
             ))
             .offset(Point2::new(0.5, 0.5));
         graphics::draw(ctx, msg, params)?;
+
         Ok(())
     }
 
     fn draw_bird(&mut self, ctx: &mut Context) -> GameResult {
         let pos = translate_coords(self.player.pos, self.screen_width, self.screen_height);
         let image = self.assets.player_image(&self.player, self.frames % 15);
-        let drawparams = graphics::DrawParam::new()
+        let drawparams = DrawParam::new()
             .dest(pos)
             .rotation(self.player.facing)
             .offset(Point2::new(0.5, 0.5));
@@ -211,6 +214,48 @@ impl MainState {
 
     fn clear_pipes(&mut self) {
         self.pipes.retain(|s| s.0.pos.x > 0.);
+    }
+
+    fn handle_collisions(&mut self) {
+        let mut player_pos =
+            translate_coords(self.player.pos, self.screen_width, self.screen_height);
+        player_pos.x -= self.offset;
+        // let screen_bottom = Point2
+        // dbg!(player_pos);
+        // dbg!((&self.pipes[0].0.pos - player_pos).norm());
+        let is_hit = |pipe: &Pipe| {
+            // let dist_bottom = (self.screen_height - player_pos).norm();
+            // if dist_bottom
+            let dist = (pipe.pos - player_pos).norm();
+            // if dist < self.player.bbox_size + pipe.bbox_size {
+            //     return true;
+            // }
+            // if dist < self.player.bbox_size + pipe.bbox_size {
+            //     return true;
+            // }
+            false
+        };
+        let mut go = false;
+        for (top, btm) in &self.pipes {
+            if is_hit(top) || is_hit(btm) {
+                go = true;
+            }
+        }
+        self.gameover = go;
+    }
+
+    fn draw_game_over(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let msg = &self.assets.gameover;
+        let params = DrawParam::new()
+            .dest(translate_coords(
+                Point2::origin(),
+                self.screen_width,
+                self.screen_height - (f32::from(msg.height()) / 2.),
+            ))
+            .offset(Point2::new(0.5, 0.5));
+        graphics::draw(ctx, msg, params)?;
+
+        Ok(())
     }
 
     // fn update_ui(&mut self, ctx: &mut Context) {
@@ -235,6 +280,7 @@ fn print_instructions() {
 /// Translates the world coordinate system, which
 /// has Y pointing up and the origin at the center,
 /// to the screen coordinate system, which has Y
+/// pointing downward and the origin at the top-left,
 fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -> Point2<f32> {
     let x = point.x + screen_width / 2.;
     let y = screen_height - (point.y + screen_height / 2.);
@@ -249,17 +295,16 @@ fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -
 // ) -> GameResult {
 //     let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
 //     let image = assets.actor_image(actor);
-//     let drawparams = graphics::DrawParam::new()
+//     let drawparams = DrawParam::new()
 //         .dest(pos)
 //         .offset(Point2::new(0.5, 0.5));
 //     graphics::draw(ctx, image, drawparams)
 // }
 
-
 impl EventHandler for MainState {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
-            if !self.paused {
+            if !self.paused && !self.gameover {
                 let seconds = 1. / (crate::DESIRED_FPS as f32);
                 self.flap_timeout -= seconds;
                 if self.input.flap && self.flap_timeout < 0. {
@@ -285,6 +330,11 @@ impl EventHandler for MainState {
 
         if self.paused {
             self.draw_menu(ctx)?;
+        } else {
+            self.handle_collisions();
+            if self.gameover {
+                self.draw_game_over(ctx)?;
+            }
         }
 
         self.draw_hud(ctx)?;
@@ -319,6 +369,9 @@ impl EventHandler for MainState {
                 let img = graphics::screenshot(ctx).expect("Could not take screenshot");
                 img.encode(ctx, graphics::ImageFormat::Png, "/screenshot.png")
                     .expect("Could not save screenshot");
+            }
+            KeyCode::Return => {
+                self.paused = !self.paused;
             }
             KeyCode::Escape => ggez::quit(ctx),
             _ => (),
