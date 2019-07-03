@@ -221,34 +221,26 @@ impl MainState {
             translate_coords(self.player.pos, self.screen_width, self.screen_height);
         player_pos.x -= self.offset;
 
-        let player_left = player_pos.x - self.player.bbox_size.x;
-        let player_bottom = player_pos.y - self.player.bbox_size.y;
         let player_right = player_pos.x + self.player.bbox_size.x;
-        let player_top = player_pos.y + self.player.bbox_size.y;
 
-        let is_hit = |pipe: &Pipe| {
+        let is_hit = |pipe: &Pipe, top: bool| {
             let pipe_right = pipe.pos.x + pipe.bbox_size.x;
-            let pipe_bottom = pipe.pos.y + pipe.bbox_size.y;
             let pipe_left = pipe.pos.x - pipe.bbox_size.x;
-            let pipe_top = pipe.pos.y - pipe.bbox_size.y;
-            println!(
-                " right {} top {} left {} bottom {}",
-                pipe_right, pipe_top, pipe_left, pipe_bottom
-            );
-            println!(
-                "player right {} top {} left {} bottom {}",
-                player_right, player_top, player_left, player_bottom
-            );
-            // if (player_right >= pipe_left && player_right <= pipe_right)
-            //     && (player_bottom <= pipe_top && player_top <= pipe_bottom)
-            // {
-            //     return true;
-            // }
+            let pipe_top = if top {
+                pipe.pos.y + pipe.bbox_size.y
+            } else {
+                pipe.pos.y - pipe.bbox_size.y
+            };
+            if (player_right >= pipe_left && player_right <= pipe_right)
+                && ((pipe_top - player_pos.y).abs() <= self.player.bbox_size.y)
+            {
+                return true;
+            }
             false
         };
         let mut go = false;
-        for (btm, top) in self.pipes.iter().take(1) {
-            if is_hit(top) || is_hit(btm) {
+        for (btm, top) in &self.pipes {
+            if is_hit(top, true) || is_hit(btm, false) {
                 go = true;
             }
         }

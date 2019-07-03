@@ -47,7 +47,7 @@ impl Actor for Player {
         Player {
             pos: Point2::origin(),
             velocity: na::zero(),
-            bbox_size: Point2::new(14., 10.),
+            bbox_size: Point2::new(14., 12.),
             facing: 0.,
         }
     }
