@@ -80,7 +80,7 @@ impl Default for Pipe {
 }
 
 impl Pipe {
-    pub const PIPE_GAP: f32 = 50.;
+    pub const PIPE_GAP: f32 = 40.;
     pub const BETWEEN_PIPE: f32 = 300.;
     pub const FIRST_PIPE_X: f32 = 200.;
     pub const MIN_RANGE: f32 = 155.;
