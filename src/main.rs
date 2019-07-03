@@ -45,7 +45,7 @@ impl Default for InputState {
     }
 }
 
-struct MainState {
+struct FlappyBird {
     player: Player,
     pipes: Vec<(Pipe, Pipe)>, // pipe & upside down pipe
     paused: bool,
@@ -61,8 +61,8 @@ struct MainState {
     gameover: bool,
 }
 
-impl MainState {
-    fn new(ctx: &mut Context) -> GameResult<MainState> {
+impl FlappyBird {
+    fn new(ctx: &mut Context) -> GameResult<FlappyBird> {
         println!("Game resource path: {:?}", ctx.filesystem);
 
         print_instructions();
@@ -73,7 +73,7 @@ impl MainState {
         let screen_height = ctx.conf.window_mode.height;
         let pipes = actors::gen_pipes(&assets, screen_width);
 
-        let s = MainState {
+        let s = FlappyBird {
             player,
             pipes,
             level: 0,
@@ -93,7 +93,7 @@ impl MainState {
     }
 
     fn restart(&mut self, ctx: &mut Context) -> GameResult<()> {
-        *self = MainState::new(ctx)?;
+        *self = FlappyBird::new(ctx)?;
         Ok(())
     }
 
@@ -178,20 +178,6 @@ impl MainState {
         Ok(())
     }
 
-    fn draw_hud(&mut self, ctx: &mut Context) -> GameResult<()> {
-        let score_dest = Point2::new(10., 10.);
-        let level_dest = Point2::new(100., 10.);
-
-        let level_str = format!("Level: {}", self.level);
-        let score_str = format!("Score: {}", self.score);
-        let level_display = graphics::Text::new((level_str, self.assets.font, 20.));
-        let score_display = graphics::Text::new((score_str, self.assets.font, 20.));
-        graphics::draw(ctx, &level_display, (level_dest, 0., graphics::WHITE))?;
-        graphics::draw(ctx, &score_display, (score_dest, 0., graphics::WHITE))?;
-
-        Ok(())
-    }
-
     fn draw_menu(&mut self, ctx: &mut Context) -> GameResult<()> {
         let msg = &self.assets.message;
         let params = DrawParam::new()
@@ -265,16 +251,6 @@ impl MainState {
 
         Ok(())
     }
-
-    // fn update_ui(&mut self, ctx: &mut Context) {
-    //     let score_str = format!("Score: {}", self.score);
-    //     let level_str = format!("Level: {}", self.level);
-    //     let score_text = graphics::Text::new(ctx, &score_str, &self.assets.font).unwrap();
-    //     let level_text = graphics::Text::new(ctx, &level_str, &self.assets.font).unwrap();
-
-    //     self.score_display = score_text;
-    //     self.level_display = level_text;
-    // }
 }
 
 fn print_instructions() {
@@ -309,7 +285,7 @@ fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -
 //     graphics::draw(ctx, image, drawparams)
 // }
 
-impl EventHandler for MainState {
+impl EventHandler for FlappyBird {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
             if !self.paused && !self.gameover {
@@ -345,7 +321,8 @@ impl EventHandler for MainState {
             }
         }
 
-        self.draw_hud(ctx)?;
+        self.draw_score(ctx)?;
+        self.draw_level(ctx)?;
         self.clear_pipes();
 
         graphics::present(ctx)?;
@@ -423,6 +400,31 @@ pub fn main() -> GameResult {
 
     let (ctx, events_loop) = &mut cb.build()?;
 
-    let game = &mut MainState::new(ctx)?;
+    let game = &mut FlappyBird::new(ctx)?;
     event::run(ctx, events_loop, game)
+}
+
+trait DrawHUD {
+    fn draw_score(&self, ctx: &mut Context) -> GameResult<()>;
+    fn draw_level(&self, ctx: &mut Context) -> GameResult<()>;
+}
+
+impl DrawHUD for FlappyBird {
+    fn draw_score(&self, ctx: &mut Context) -> GameResult<()> {
+        let score_dest = Point2::new(10., 10.);
+        let score_str = format!("Score: {}", self.score);
+
+        let score_display = graphics::Text::new((score_str, self.assets.font, 20.));
+        graphics::draw(ctx, &score_display, (score_dest, 0., graphics::WHITE))?;
+
+        Ok(())
+    }
+    fn draw_level(&self, ctx: &mut Context) -> GameResult<()> {
+        let level_dest = Point2::new(100., 10.);
+        let level_str = format!("Level: {}", self.level);
+        let level_display = graphics::Text::new((level_str, self.assets.font, 20.));
+
+        graphics::draw(ctx, &level_display, (level_dest, 0., graphics::WHITE))?;
+        Ok(())
+    }
 }
