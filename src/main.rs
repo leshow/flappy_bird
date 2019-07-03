@@ -14,7 +14,7 @@ use ggez::{
     event::{self, EventHandler, KeyCode, KeyMods},
     graphics::{self, spritebatch::SpriteBatch, DrawParam},
     nalgebra as na,
-    nalgebra::Point2,
+    nalgebra::{Point2, Vector2},
     timer, {Context, ContextBuilder, GameResult},
 };
 
@@ -22,7 +22,7 @@ use std::{env, path};
 
 // game constants
 pub const PLAYER_LIFE: f32 = 1.;
-pub const FALL_SPEED: f32 = 15.;
+pub const FALL_SPEED: f32 = 18.;
 pub const FLAP_SPEED: f32 = 320.;
 pub const FLAP_TIMEOUT: f32 = 0.35;
 
@@ -220,23 +220,34 @@ impl MainState {
         let mut player_pos =
             translate_coords(self.player.pos, self.screen_width, self.screen_height);
         player_pos.x -= self.offset;
-        // let screen_bottom = Point2
-        // dbg!(player_pos);
-        // dbg!((&self.pipes[0].0.pos - player_pos).norm());
+
+        let player_left = player_pos.x - self.player.bbox_size.x;
+        let player_bottom = player_pos.y - self.player.bbox_size.y;
+        let player_right = player_pos.x + self.player.bbox_size.x;
+        let player_top = player_pos.y + self.player.bbox_size.y;
+
         let is_hit = |pipe: &Pipe| {
-            // let dist_bottom = (self.screen_height - player_pos).norm();
-            // if dist_bottom
-            let dist = (pipe.pos - player_pos).norm();
-            // if dist < self.player.bbox_size + pipe.bbox_size {
-            //     return true;
-            // }
-            // if dist < self.player.bbox_size + pipe.bbox_size {
+            let pipe_right = pipe.pos.x + pipe.bbox_size.x;
+            let pipe_bottom = pipe.pos.y + pipe.bbox_size.y;
+            let pipe_left = pipe.pos.x - pipe.bbox_size.x;
+            let pipe_top = pipe.pos.y - pipe.bbox_size.y;
+            println!(
+                " right {} top {} left {} bottom {}",
+                pipe_right, pipe_top, pipe_left, pipe_bottom
+            );
+            println!(
+                "player right {} top {} left {} bottom {}",
+                player_right, player_top, player_left, player_bottom
+            );
+            // if (player_right >= pipe_left && player_right <= pipe_right)
+            //     && (player_bottom <= pipe_top && player_top <= pipe_bottom)
+            // {
             //     return true;
             // }
             false
         };
         let mut go = false;
-        for (top, btm) in &self.pipes {
+        for (btm, top) in self.pipes.iter().take(1) {
             if is_hit(top) || is_hit(btm) {
                 go = true;
             }
