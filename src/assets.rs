@@ -3,8 +3,6 @@ use crate::actors::Player;
 use ggez::{
     audio,
     graphics::{self, spritebatch::SpriteBatch},
-    nalgebra as na,
-    nalgebra::Vector2,
     {Context, GameResult},
 };
 use rand::Rng;
@@ -22,9 +20,14 @@ pub struct BgAssets {
 
 impl BgAssets {
     #[inline]
-    pub fn new(ctx: &mut Context) -> GameResult<Self> {
+    pub fn new<R>(ctx: &mut Context, rng: &mut R) -> GameResult<Self>
+    where
+        R: Rng + ?Sized,
+    {
+        let rand_style: usize = rng.gen_range(0, 2);
+        let style = BgAssets::style()[rand_style];
         // background
-        let bg_img = graphics::Image::new(ctx, "/background-day.png")?;
+        let bg_img = graphics::Image::new(ctx, format!("/background-{}.png", style))?;
         let bg_w = bg_img.width();
         let bg_h = bg_img.height();
         let bg = SpriteBatch::new(bg_img);
@@ -47,6 +50,11 @@ impl BgAssets {
             pipe,
         })
     }
+
+    #[inline]
+    pub const fn style() -> [&'static str; 2] {
+        ["day", "night"]
+    }
 }
 
 pub struct PlayerAssets {
@@ -57,10 +65,11 @@ pub struct PlayerAssets {
 
 impl PlayerAssets {
     #[inline]
-    pub fn new(ctx: &mut Context) -> GameResult<Self> {
-        // pick a color
-        let mut rng = rand::thread_rng();
-        let rand_color: usize = rng.gen_range(0, 3);
+    pub fn new<R>(ctx: &mut Context, rng: &mut R) -> GameResult<Self>
+    where
+        R: Rng + ?Sized,
+    {
+        let rand_color: usize = rng.gen_range(0, 2);
         let color = PlayerAssets::color()[rand_color];
         //
         let player_midflap = graphics::Image::new(ctx, format!("/{}bird-midflap.png", color))?;
@@ -95,6 +104,7 @@ pub struct Assets {
 
 impl Assets {
     pub fn new(ctx: &mut Context) -> GameResult<Self> {
+        let mut rng = rand::thread_rng();
         //
         let font = graphics::Font::new(ctx, "/DejaVuSerif.ttf")?;
 
@@ -107,13 +117,13 @@ impl Assets {
         hit_sound.set_ears([-1., 0., 0.], [1., 0., 0.]);
 
         Ok(Assets {
-            player: PlayerAssets::new(ctx)?,
+            player: PlayerAssets::new(ctx, &mut rng)?,
             font,
             message,
             gameover,
             shot_sound,
             hit_sound,
-            bg: BgAssets::new(ctx)?,
+            bg: BgAssets::new(ctx, &mut rng)?,
         })
     }
 
@@ -131,4 +141,3 @@ impl Assets {
         }
     }
 }
-

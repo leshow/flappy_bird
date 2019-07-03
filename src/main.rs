@@ -9,12 +9,11 @@ use crate::{
 };
 
 use ggez::{
-    audio::{self, SoundSource},
     conf,
     event::{self, EventHandler, KeyCode, KeyMods},
-    graphics::{self, spritebatch::SpriteBatch, DrawParam},
+    graphics::{self, DrawParam},
     nalgebra as na,
-    nalgebra::{Point2, Vector2},
+    nalgebra::Point2,
     timer, {Context, ContextBuilder, GameResult},
 };
 
@@ -91,6 +90,11 @@ impl MainState {
         };
 
         Ok(s)
+    }
+
+    fn restart(&mut self, ctx: &mut Context) -> GameResult<()> {
+        *self = MainState::new(ctx)?;
+        Ok(())
     }
 
     fn draw_bg(&mut self, ctx: &mut Context) -> GameResult<()> {
@@ -222,17 +226,18 @@ impl MainState {
         player_pos.x -= self.offset;
 
         let player_right = player_pos.x + self.player.bbox_size.x;
+        let player_top = player_pos.y - self.player.bbox_size.y;
+        let player_bottom = player_pos.y + self.player.bbox_size.y;
 
         let is_hit = |pipe: &Pipe, top: bool| {
             let pipe_right = pipe.pos.x + pipe.bbox_size.x;
             let pipe_left = pipe.pos.x - pipe.bbox_size.x;
-            let pipe_top = if top {
-                pipe.pos.y + pipe.bbox_size.y
-            } else {
-                pipe.pos.y - pipe.bbox_size.y
-            };
-            if (player_right >= pipe_left && player_right <= pipe_right)
-                && ((pipe_top - player_pos.y).abs() <= self.player.bbox_size.y)
+            let pipe_top = pipe.pos.y - pipe.bbox_size.y;
+            let pipe_bottom = pipe.pos.y + pipe.bbox_size.y;
+
+            let crosses_left = player_right >= pipe_left && player_right <= pipe_right;
+            if crosses_left
+                && ((top && player_top <= pipe_bottom) || (!top && player_bottom >= pipe_top))
             {
                 return true;
             }
@@ -372,6 +377,11 @@ impl EventHandler for MainState {
                 let img = graphics::screenshot(ctx).expect("Could not take screenshot");
                 img.encode(ctx, graphics::ImageFormat::Png, "/screenshot.png")
                     .expect("Could not save screenshot");
+            }
+            KeyCode::R => {
+                if self.gameover {
+                    self.restart(ctx).expect("Restart failed");
+                }
             }
             KeyCode::Return => {
                 self.paused = !self.paused;
