@@ -215,6 +215,11 @@ impl FlappyBird {
         let player_top = player_pos.y - self.player.bbox_size.y;
         let player_bottom = player_pos.y + self.player.bbox_size.y;
 
+        if player_bottom >= f32::from(self.assets.bg.bg_h) {
+            self.gameover = true;
+            return;
+        }
+
         let is_hit = |pipe: &Pipe, top: bool| {
             let pipe_right = pipe.pos.x + pipe.bbox_size.x;
             let pipe_left = pipe.pos.x - pipe.bbox_size.x;
@@ -223,19 +228,27 @@ impl FlappyBird {
 
             let crosses_left = player_right >= pipe_left && player_right <= pipe_right;
             if crosses_left
-                && ((top && player_top <= pipe_bottom) || (!top && player_bottom >= pipe_top))
+                && (((top && player_top <= pipe_bottom) || (!top && player_bottom >= pipe_top))
+                    || player_bottom <= 0.)
             {
                 return true;
             }
             false
         };
-        let mut go = false;
-        for (btm, top) in &self.pipes {
-            if is_hit(top, true) || is_hit(btm, false) {
-                go = true;
-            }
-        }
-        self.gameover = go;
+        let half_width = self.screen_width / 2.;
+        let start = player_pos.x - half_width;
+        let end = player_pos.x + half_width;
+        self.gameover = self
+            .pipes
+            .iter()
+            .filter(|(b, _t)| start <= b.pos.x && b.pos.x <= end)
+            .fold(false, |gameover, (btm, top)| {
+                if gameover {
+                    gameover
+                } else {
+                    is_hit(top, true) || is_hit(btm, false)
+                }
+            });
     }
 
     fn draw_game_over(&mut self, ctx: &mut Context) -> GameResult<()> {
