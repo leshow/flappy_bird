@@ -220,7 +220,8 @@ impl FlappyBird {
             return;
         }
 
-        let is_hit = |pipe: &Pipe, top: bool| {
+        let is_hit = |pipe: &Pipe| {
+            let top = pipe.facing != 0.;
             let pipe_right = pipe.pos.x + pipe.bbox_size.x;
             let pipe_left = pipe.pos.x - pipe.bbox_size.x;
             let pipe_top = pipe.pos.y - pipe.bbox_size.y;
@@ -246,7 +247,7 @@ impl FlappyBird {
                 if gameover {
                     gameover
                 } else {
-                    is_hit(top, true) || is_hit(btm, false)
+                    is_hit(top) || is_hit(btm)
                 }
             });
     }
@@ -270,7 +271,8 @@ fn print_instructions() {
     println!("{:-^60}", "Welcome to Flappy Bird!");
     println!();
     println!("How to play:");
-    println!("<space> to flap -- avoid the pipes!");
+    println!("{: <40}", "<a> to flap -- avoid the pipes!");
+    println!("{: <40}", "<r> to restart");
     println!();
 }
 
@@ -283,20 +285,6 @@ fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -
     let y = screen_height - (point.y + screen_height / 2.);
     Point2::new(x, y)
 }
-
-// fn draw_actor(
-//     assets: &mut Assets,
-//     ctx: &mut Context,
-//     actor: &Actor,
-//     screen_dims: (f32, f32),
-// ) -> GameResult {
-//     let pos = translate_coords(actor.pos, screen_dims.0, screen_dims.1);
-//     let image = assets.actor_image(actor);
-//     let drawparams = DrawParam::new()
-//         .dest(pos)
-//         .offset(Point2::new(0.5, 0.5));
-//     graphics::draw(ctx, image, drawparams)
-// }
 
 impl EventHandler for FlappyBird {
     fn update(&mut self, ctx: &mut Context) -> GameResult {

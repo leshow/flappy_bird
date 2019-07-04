@@ -6,6 +6,7 @@ use ggez::{
 };
 use rand::Rng;
 
+// bit of a useless trait right now
 pub trait Actor {
     fn new() -> Self;
     fn update_pos(&mut self, dt: f32);
@@ -23,7 +24,6 @@ pub struct Player {
 pub struct Pipe {
     pub pos: Point2<f32>,
     pub facing: f32,
-    // pub velocity: Vector2<f32>,
     pub bbox_size: Point2<f32>,
 }
 
