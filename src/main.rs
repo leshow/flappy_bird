@@ -13,7 +13,7 @@ use crate::{
 
 use ggez::{
     conf,
-    event::{self, EventHandler, KeyCode, KeyMods},
+    event::{self, EventHandler, KeyCode, KeyMods, MouseButton},
     graphics::{self, DrawParam},
     nalgebra as na,
     nalgebra::Point2,
@@ -369,17 +369,34 @@ impl EventHandler for FlappyBird {
     }
 
     fn key_up_event(&mut self, _ctx: &mut Context, keycode: KeyCode, _keymod: KeyMods) {
-        match keycode {
-            KeyCode::A => {
-                self.input.flap = false;
-                // variable height flap
-                // let dir = vec_from_angle(0.);
-                // let flap_vec = dir * (crate::FLAP_SPEED / 2.0);
-                // if self.player.velocity < flap_vec {
-                //     self.player.velocity = flap_vec;
-                // }
+        if let KeyCode::A = keycode {
+            self.input.flap = false;
+            // variable height flap
+            // let dir = vec_from_angle(0.);
+            // let flap_vec = dir * (crate::FLAP_SPEED / 2.0);
+            // if self.player.velocity < flap_vec {
+            //     self.player.velocity = flap_vec;
+            // }
+        }
+    }
+
+    fn mouse_button_down_event(
+        &mut self,
+        _ctx: &mut Context,
+        button: MouseButton,
+        _x: f32,
+        _y: f32,
+    ) {
+        if let MouseButton::Left = button {
+            if self.state.is_paused() {
+                self.state = GameState::Playing;
             }
-            _ => (),
+            self.input.flap = true;
+        }
+    }
+    fn mouse_button_up_event(&mut self, _ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) {
+        if let MouseButton::Left = button {
+            self.input.flap = false;
         }
     }
 }
