@@ -12,7 +12,7 @@ pub trait Actor {
     fn update_pos(&mut self, dt: f32);
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Player {
     pub pos: Point2<f32>,
     pub velocity: Vector2<f32>,
@@ -20,7 +20,7 @@ pub struct Player {
     pub bbox_size: Point2<f32>,
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub struct Pipe {
     pub pos: Point2<f32>,
     pub facing: f32,

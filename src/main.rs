@@ -1,11 +1,14 @@
 #[allow(dead_code)]
 mod actors;
 mod assets;
+mod gamestate;
 mod util;
 
 use crate::{
     actors::{Actor, Pipe, Player},
     assets::Assets,
+    gamestate::GameState,
+    util::translate_coords,
 };
 
 use ggez::{
@@ -34,7 +37,7 @@ pub const PIPE_BBOX: f32 = 12.;
 pub const SCREEN_HEIGHT: f32 = 624.;
 pub const SCREEN_WIDTH: f32 = 1008.;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 struct InputState {
     flap: bool,
 }
@@ -45,12 +48,12 @@ impl Default for InputState {
     }
 }
 
+#[derive(Debug)]
 struct FlappyBird {
     player: Player,
     pipes: Vec<(Pipe, Pipe)>, // pipe & upside down pipe
-    paused: bool,
-    level: i32,
-    score: i32,
+    level: usize,
+    score: usize,
     assets: Assets,
     screen_width: f32,
     screen_height: f32,
@@ -58,7 +61,7 @@ struct FlappyBird {
     flap_timeout: f32,
     offset: f32,
     frames: u64,
-    gameover: bool,
+    state: GameState,
 }
 
 impl FlappyBird {
@@ -83,10 +86,9 @@ impl FlappyBird {
             screen_height,
             input: InputState::default(),
             flap_timeout: 0.,
-            paused: true,
-            gameover: false,
             offset: 0.,
             frames: 0,
+            state: GameState::Paused,
         };
 
         Ok(s)
@@ -216,7 +218,7 @@ impl FlappyBird {
         let player_bottom = player_pos.y + self.player.bbox_size.y;
 
         if player_bottom >= f32::from(self.assets.bg.bg_h) {
-            self.gameover = true;
+            self.state = GameState::GameOver;
             return;
         }
 
@@ -232,23 +234,20 @@ impl FlappyBird {
                 && (((top && player_top <= pipe_bottom) || (!top && player_bottom >= pipe_top))
                     || player_bottom <= 0.)
             {
-                return true;
+                return GameState::GameOver;
             }
-            false
+            GameState::Playing
         };
         let half_width = self.screen_width / 2.;
         let start = player_pos.x - half_width;
         let end = player_pos.x + half_width;
-        self.gameover = self
+        self.state = self
             .pipes
             .iter()
             .filter(|(b, _t)| start <= b.pos.x && b.pos.x <= end)
-            .fold(false, |gameover, (btm, top)| {
-                if gameover {
-                    gameover
-                } else {
-                    is_hit(top) || is_hit(btm)
-                }
+            .fold(self.state, |state, (btm, top)| match state {
+                GameState::GameOver => GameState::GameOver,
+                _ => is_hit(top) | is_hit(btm),
             });
     }
 
@@ -265,6 +264,16 @@ impl FlappyBird {
 
         Ok(())
     }
+
+    fn count_points(&mut self) {
+        let player_x = translate_coords(self.player.pos, self.screen_width, self.screen_height).x
+            - self.offset;
+        self.score = self
+            .pipes
+            .iter()
+            .filter(|(ref b, _)| b.pos.x < player_x)
+            .count();
+    }
 }
 
 fn print_instructions() {
@@ -276,20 +285,10 @@ fn print_instructions() {
     println!();
 }
 
-/// Translates the world coordinate system, which
-/// has Y pointing up and the origin at the center,
-/// to the screen coordinate system, which has Y
-/// pointing downward and the origin at the top-left,
-fn translate_coords(point: Point2<f32>, screen_width: f32, screen_height: f32) -> Point2<f32> {
-    let x = point.x + screen_width / 2.;
-    let y = screen_height - (point.y + screen_height / 2.);
-    Point2::new(x, y)
-}
-
 impl EventHandler for FlappyBird {
     fn update(&mut self, ctx: &mut Context) -> GameResult {
         while timer::check_update_time(ctx, DESIRED_FPS) {
-            if !self.paused && !self.gameover {
+            if self.state.is_playing() {
                 let seconds = 1. / (crate::DESIRED_FPS as f32);
                 self.flap_timeout -= seconds;
                 if self.input.flap && self.flap_timeout < 0. {
@@ -313,12 +312,12 @@ impl EventHandler for FlappyBird {
 
         self.draw_bird(ctx)?;
 
-        if self.paused {
-            self.draw_menu(ctx)?;
-        } else {
-            self.handle_collisions();
-            if self.gameover {
-                self.draw_game_over(ctx)?;
+        match self.state {
+            GameState::Paused => self.draw_menu(ctx)?,
+            GameState::GameOver => self.draw_game_over(ctx)?,
+            GameState::Playing => {
+                self.handle_collisions();
+                self.count_points();
             }
         }
 
@@ -346,8 +345,8 @@ impl EventHandler for FlappyBird {
     ) {
         match keycode {
             KeyCode::A => {
-                if self.paused {
-                    self.paused = false;
+                if self.state.is_paused() {
+                    self.state = GameState::Playing;
                 }
                 self.input.flap = true;
             }
@@ -357,12 +356,12 @@ impl EventHandler for FlappyBird {
                     .expect("Could not save screenshot");
             }
             KeyCode::R => {
-                if self.gameover {
+                if self.state.is_gameover() {
                     self.restart(ctx).expect("Restart failed");
                 }
             }
             KeyCode::Return => {
-                self.paused = !self.paused;
+                self.state.toggle_pause();
             }
             KeyCode::Escape => ggez::quit(ctx),
             _ => (),
@@ -420,6 +419,7 @@ impl DrawHUD for FlappyBird {
 
         Ok(())
     }
+
     fn draw_level(&self, ctx: &mut Context) -> GameResult<()> {
         let level_dest = Point2::new(100., 10.);
         let level_str = format!("Level: {}", self.level);

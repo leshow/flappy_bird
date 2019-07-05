@@ -7,6 +7,7 @@ use ggez::{
 };
 use rand::Rng;
 
+#[derive(Debug, Clone)]
 pub struct BgAssets {
     pub base: SpriteBatch,
     pub base_w: u16,
@@ -57,6 +58,7 @@ impl BgAssets {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct PlayerAssets {
     pub player_midflap: graphics::Image,
     pub player_upflap: graphics::Image,
@@ -89,6 +91,7 @@ impl PlayerAssets {
     }
 }
 
+#[derive(Debug )]
 pub struct Assets {
     pub player: PlayerAssets,
     pub font: graphics::Font,
