@@ -13,3 +13,8 @@ cargo run --release
 ```bash
 cargo install
 ```
+
+## Screenshots
+
+![Get Ready!](./screenshot/flappy_bird.png)
+![Gameover](./screenshot/gameover.png)
