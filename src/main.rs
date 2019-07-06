@@ -1,4 +1,4 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
 mod actors;
 mod assets;
 mod gamestate;
@@ -15,8 +15,7 @@ use ggez::{
     conf,
     event::{self, EventHandler, KeyCode, KeyMods, MouseButton},
     graphics::{self, DrawParam},
-    nalgebra as na,
-    nalgebra::Point2,
+    nalgebra::{self as na, Point2},
     timer, {Context, ContextBuilder, GameResult},
 };
 
@@ -96,6 +95,7 @@ impl FlappyBird {
 
     fn restart(&mut self, ctx: &mut Context) -> GameResult<()> {
         *self = FlappyBird::new(ctx)?;
+        self.update_state(GameState::Playing);
         Ok(())
     }
 
@@ -196,7 +196,11 @@ impl FlappyBird {
 
     fn draw_bird(&mut self, ctx: &mut Context) -> GameResult {
         let pos = translate_coords(self.player.pos, self.screen_width, self.screen_height);
-        let image = self.assets.player_image(&self.player, self.frames % 15);
+        let image = if self.state.is_playing() {
+            self.assets.player_image(&self.player, self.frames % 15)
+        } else {
+            &mut self.assets.player.player_midflap
+        };
         let drawparams = DrawParam::new()
             .dest(pos)
             .rotation(self.player.facing)
@@ -218,7 +222,7 @@ impl FlappyBird {
         let player_bottom = player_pos.y + self.player.bbox_size.y;
 
         if player_bottom >= f32::from(self.assets.bg.bg_h) {
-            self.state = GameState::GameOver;
+            self.update_state(GameState::GameOver);
             return;
         }
 
@@ -241,14 +245,15 @@ impl FlappyBird {
         let half_width = self.screen_width / 2.;
         let start = player_pos.x - half_width;
         let end = player_pos.x + half_width;
-        self.state = self
-            .pipes
-            .iter()
-            .filter(|(b, _t)| start <= b.pos.x && b.pos.x <= end)
-            .fold(self.state, |state, (btm, top)| match state {
-                GameState::GameOver => GameState::GameOver,
-                _ => is_hit(top) | is_hit(btm),
-            });
+        self.update_state(
+            self.pipes
+                .iter()
+                .filter(|(b, _t)| start <= b.pos.x && b.pos.x <= end)
+                .fold(self.state, |state, (btm, top)| match state {
+                    GameState::GameOver => GameState::GameOver,
+                    _ => is_hit(top) | is_hit(btm),
+                }),
+        );
     }
 
     fn draw_game_over(&mut self, ctx: &mut Context) -> GameResult<()> {
@@ -274,15 +279,24 @@ impl FlappyBird {
             .filter(|(ref b, _)| b.pos.x < player_x)
             .count();
     }
-}
 
-fn print_instructions() {
-    println!("{:-^60}", "Welcome to Flappy Bird!");
-    println!();
-    println!("How to play:");
-    println!("{: <40}", "<a> to flap -- avoid the pipes!");
-    println!("{: <40}", "<r> to restart");
-    println!();
+    fn draw_countdown(&mut self, ctx: &mut Context) -> GameResult<()> {
+        let center = translate_coords(Point2::origin(), self.screen_width, self.screen_height);
+        match self.assets.countdown(self.frames % 183) {
+            Some(num) => graphics::draw(ctx, num, DrawParam::new().dest(center))?,
+            None => self.state = GameState::Playing,
+        }
+        Ok(())
+    }
+
+    fn update_state(&mut self, new_state: GameState) {
+        if self.state.is_paused() && new_state.is_playing() {
+            self.frames = 0;
+            self.state = GameState::Countdown;
+        } else {
+            self.state = new_state;
+        }
+    }
 }
 
 impl EventHandler for FlappyBird {
@@ -298,6 +312,8 @@ impl EventHandler for FlappyBird {
                 self.offset -= crate::MOVE_SPEED;
                 self.frames += 1;
                 self.player.update_pos(seconds);
+            } else if self.state.is_countdown() {
+                self.frames += 1;
             }
         }
 
@@ -313,11 +329,18 @@ impl EventHandler for FlappyBird {
         self.draw_bird(ctx)?;
 
         match self.state {
-            GameState::Paused => self.draw_menu(ctx)?,
-            GameState::GameOver => self.draw_game_over(ctx)?,
+            GameState::Paused => {
+                self.draw_menu(ctx)?;
+            }
+            GameState::GameOver => {
+                self.draw_game_over(ctx)?;
+            }
             GameState::Playing => {
                 self.handle_collisions();
                 self.count_points();
+            }
+            GameState::Countdown => {
+                self.draw_countdown(ctx)?;
             }
         }
 
@@ -346,7 +369,7 @@ impl EventHandler for FlappyBird {
         match keycode {
             KeyCode::A => {
                 if self.state.is_paused() {
-                    self.state = GameState::Playing;
+                    self.update_state(GameState::Playing);
                 }
                 self.input.flap = true;
             }
@@ -389,7 +412,7 @@ impl EventHandler for FlappyBird {
     ) {
         if let MouseButton::Left = button {
             if self.state.is_paused() {
-                self.state = GameState::Playing;
+                self.update_state(GameState::Playing);
             }
             self.input.flap = true;
         }
@@ -399,6 +422,15 @@ impl EventHandler for FlappyBird {
             self.input.flap = false;
         }
     }
+}
+
+fn print_instructions() {
+    println!("{:-^60}", "Welcome to Flappy Bird!");
+    println!();
+    println!("How to play:");
+    println!("{: <40}", "<a> to flap -- avoid the pipes!");
+    println!("{: <40}", "<r> to restart");
+    println!();
 }
 
 pub fn main() -> GameResult {

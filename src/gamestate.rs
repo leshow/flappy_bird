@@ -5,6 +5,7 @@ pub enum GameState {
     Playing,
     Paused,
     GameOver,
+    Countdown,
 }
 
 impl GameState {
@@ -23,6 +24,12 @@ impl GameState {
     pub fn is_gameover(self) -> bool {
         match self {
             GameState::GameOver => true,
+            _ => false,
+        }
+    }
+    pub fn is_countdown(self) -> bool {
+        match self {
+            GameState::Countdown => true,
             _ => false,
         }
     }
